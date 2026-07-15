@@ -196,26 +196,26 @@
   .print-map-block .route-map-svg{ border-radius:6px; }
 
   .print-header{margin-bottom:10px;}
-  .print-title{font-size:16px; font-weight:700; color:var(--green); letter-spacing:0.5px; margin-bottom:4px;}
-  .print-meta{font-size:12px; color:var(--text-dim);}
+  .print-title{font-size:15px; font-weight:700; color:var(--green); letter-spacing:2px; margin-bottom:6px;}
+  .print-meta{display:flex; flex-wrap:wrap; gap:14px; font-size:11px; color:var(--text-dim); border-top:1px solid var(--line); padding-top:6px;}
   .print-meta span{color:var(--text);}
-  .print-meta span:not(:first-child)::before{content:' · '; color:var(--text-dim);}
   .print-section-title{font-size:10px; letter-spacing:2px; color:var(--green); margin-bottom:8px; text-transform:uppercase;}
-  .print-table{width:100%; border-collapse:collapse; font-size:12px; font-family:var(--mono);}
+  .print-table{width:100%; border-collapse:collapse; font-size:11px; font-family:var(--mono);}
   .print-table th{
-    text-align:left; color:var(--text-dim); font-size:9px; letter-spacing:1px;
-    padding:6px 6px; border-bottom:1px solid var(--line); white-space:nowrap;
+    background:#0d120c; color:var(--text-dim); font-size:9px; letter-spacing:1px;
+    padding:5px 6px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap;
   }
   .print-table td{
-    padding:7px 6px; border-bottom:1px solid #1a2117; vertical-align:middle;
+    padding:5px 6px; border-bottom:1px solid #1a2117; vertical-align:middle;
     color:var(--text); white-space:nowrap;
   }
   .print-table td b{color:var(--green);}
-  .print-table tr.print-warn td{color:var(--red);}
+  .print-table tr:nth-child(even) td{background:#0e130c;}
+  .print-table tr.print-warn td{background:#2a0a0a; color:var(--red);}
   .print-totals{
     display:flex; flex-wrap:wrap; gap:16px; margin-top:10px;
-    padding-top:8px; border-top:1px solid var(--line);
-    font-size:12px; color:var(--text-dim);
+    padding:8px 10px; background:#0d120c; border-radius:6px;
+    font-size:11px; color:var(--text-dim);
   }
   .print-totals b{color:var(--amber);}
 
@@ -294,21 +294,21 @@
 
     /* ── Typography (black-on-white for print) ── */
     body          { background: #fff !important; margin: 0 !important; }
-    .print-title  { color: #000 !important; font-size: 16px !important; letter-spacing: 0.5px !important; }
-    .print-meta   { color: #000 !important; font-size: 12px !important; }
+    .print-title  { color: #000 !important; font-size: 14px !important; letter-spacing: 2px !important; }
+    .print-meta   { color: #444 !important; }
     .print-meta span { color: #000 !important; }
-    .print-meta span::before { color: #000 !important; }
     .print-block  { margin: 0 !important; }
     .print-map-block .print-header { margin-bottom: 4px !important; flex-shrink: 0 !important; }
-    .print-map-block .print-totals { margin-top:  4px !important; flex-shrink: 0 !important; }
+    .print-map-block .print-totals { margin-top:  4px !important; flex-shrink: 0 !important; font-size:10px !important; }
 
     /* ── Table styling ── */
-    .print-table  { border-collapse: collapse !important; width: 100% !important; font-size: 12px !important; }
-    .print-table th { color:#000 !important; background:none !important; border-bottom:1px solid #999 !important; padding:6px 6px !important; font-size:9px !important; }
-    .print-table td { color:#000 !important; border-bottom:1px solid #ccc !important; padding:7px 6px !important; }
+    .print-table  { border-collapse: collapse !important; width: 100% !important; }
+    .print-table th { background:#e8e8e8 !important; color:#111 !important; border:1px solid #aaa !important; padding:4px 5px !important; font-size:9px !important; }
+    .print-table td { color:#000 !important; border:1px solid #ccc !important; padding:4px 5px !important; font-size:9px !important; }
     .print-table td b { color:#000 !important; font-weight:700 !important; }
-    .print-table tr.print-warn td { color:#c00 !important; font-weight:700 !important; }
-    .print-totals { border-top:1px solid #999 !important; color:#000 !important; padding-top:6px !important; font-size:11px !important; background:none !important; }
+    .print-table tr:nth-child(even) td { background:#f5f5f5 !important; }
+    .print-table tr.print-warn td { background:#ffdede !important; color:#c00 !important; font-weight:700 !important; }
+    .print-totals { background:#e8e8e8 !important; color:#333 !important; padding:5px 6px !important; font-size:9px !important; }
     .print-totals b { color:#000 !important; }
     .print-header { margin-bottom: 6px !important; }
 
