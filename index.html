@@ -1,0 +1,1779 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NAV PLAN">
+<meta name="theme-color" content="#0a0e0a">
+<title>NAV PLAN — Operational Flight Plan</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icon-152.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icon-167.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<style>
+  :root{
+    --bg:#0a0e0a;
+    --bg-panel:#11160f;
+    --bg-card:#161d14;
+    --line:#2a3526;
+    --line-bright:#3d4d36;
+    --green:#39ff6a;
+    --green-dim:#1f8f3f;
+    --amber:#ffb347;
+    --red:#ff4d4d;
+    --text:#d7e8d0;
+    --text-dim:#7a8f72;
+    --mono: 'SF Mono','Menlo','Consolas',monospace;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--mono);
+    overscroll-behavior:none; height:100%; -webkit-user-select:none; user-select:none;}
+  #root{height:100%; display:flex; flex-direction:column;}
+  input,textarea{-webkit-user-select:text; user-select:text;}
+
+  ::-webkit-scrollbar{width:6px; height:6px;}
+  ::-webkit-scrollbar-thumb{background:var(--line-bright); border-radius:3px;}
+
+  .topbar{
+    display:flex; align-items:center; gap:10px; padding:10px 14px;
+    background:linear-gradient(180deg,#141a12,#0d120c);
+    border-bottom:1px solid var(--line); flex-shrink:0;
+    padding-top:max(10px, env(safe-area-inset-top));
+  }
+  .logo{font-weight:700; color:var(--green); letter-spacing:2px; font-size:13px; white-space:nowrap;}
+  .logo small{color:var(--text-dim); font-weight:400; letter-spacing:1px;}
+  .tabs{display:flex; gap:4px; margin-left:auto; flex-wrap:wrap; justify-content:flex-end;}
+  .tab{
+    padding:8px 14px; border:1px solid var(--line); border-radius:6px;
+    background:var(--bg-panel); color:var(--text-dim); font-size:12px; letter-spacing:1px;
+    cursor:pointer; font-family:var(--mono); white-space:nowrap;
+  }
+  .tab.active{background:var(--green-dim); color:#eafff0; border-color:var(--green);}
+  .tab.disabled{opacity:0.35; pointer-events:none;}
+
+  .main{flex:1; overflow:auto; padding:14px; padding-bottom:max(14px, env(safe-area-inset-bottom));}
+
+  .panel{
+    background:var(--bg-panel); border:1px solid var(--line); border-radius:10px;
+    padding:14px; margin-bottom:14px;
+  }
+  .panel-title{
+    font-size:11px; letter-spacing:2px; color:var(--green); text-transform:uppercase;
+    margin:0 0 12px 0; display:flex; align-items:center; gap:8px;
+  }
+  .panel-title::after{content:''; flex:1; height:1px; background:var(--line);}
+
+  .grid{display:grid; gap:10px;}
+  .g2{grid-template-columns:1fr 1fr;}
+  .g3{grid-template-columns:1fr 1fr 1fr;}
+  .g4{grid-template-columns:1fr 1fr 1fr 1fr;}
+  .g5{grid-template-columns:1fr 1fr 1fr 1fr 1fr;}
+  @media (max-width:900px){ .g5{grid-template-columns:1fr 1fr 1fr;} }
+  @media (max-width:700px){ .g3,.g4{grid-template-columns:1fr 1fr;} }
+
+  .field label{display:block; font-size:10px; color:var(--text-dim); letter-spacing:1px; margin-bottom:5px;}
+  .field select, .field input{
+    width:100%; background:#0d120c; border:1px solid var(--line); border-radius:6px;
+    color:var(--text); padding:10px 9px; font-family:var(--mono); font-size:14px;
+  }
+  .field select:focus, .field input:focus{outline:none; border-color:var(--green-dim);}
+  .field .readout{
+    background:#0d120c; border:1px solid var(--line); border-radius:6px;
+    padding:10px 9px; font-size:14px; color:var(--amber); min-height:20px;
+  }
+
+  .btn{
+    background:var(--bg-card); border:1px solid var(--line-bright); color:var(--text);
+    padding:10px 16px; border-radius:6px; font-family:var(--mono); font-size:12px;
+    letter-spacing:1px; cursor:pointer;
+  }
+  .btn:active{transform:scale(0.97);}
+  .btn-primary{background:var(--green-dim); border-color:var(--green); color:#eafff0;}
+  .btn-danger{border-color:var(--red); color:var(--red);}
+  .btn-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .btn-sm{padding:6px 10px; font-size:11px;}
+
+  .route-table{width:100%; border-collapse:collapse; font-size:12px;}
+  .route-table th{
+    text-align:left; color:var(--text-dim); font-size:9px; letter-spacing:1px;
+    padding:6px 6px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg-panel);
+    white-space:nowrap;
+  }
+  .route-table td{padding:7px 6px; border-bottom:1px solid #1a2117; vertical-align:middle; white-space:nowrap;}
+  .route-table tr.point-row:nth-child(even){background:#0e130c;}
+  .route-table input, .route-table select{
+    width:100%; background:#0d120c; border:1px solid var(--line); border-radius:4px;
+    color:var(--text); padding:5px 6px; font-family:var(--mono); font-size:12px;
+  }
+  .num{color:var(--amber); font-variant-numeric:tabular-nums;}
+  .num-g{color:var(--green); font-variant-numeric:tabular-nums;}
+  .num-r{color:var(--red); font-variant-numeric:tabular-nums;}
+  .ac{color:#8fb3ff;}
+  .center{text-align:center;}
+  .rm-btn{
+    background:none; border:1px solid var(--line); color:var(--text-dim); border-radius:5px;
+    width:26px; height:26px; cursor:pointer; font-size:13px; line-height:1;
+  }
+  .arrow{font-size:14px; color:var(--text-dim);}
+  .text-dim{color:var(--text-dim);}
+
+  .table-wrap{overflow:auto; max-height:60vh; border:1px solid var(--line); border-radius:8px;}
+
+  .summary-strip{
+    display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-top:12px;
+  }
+  @media (max-width:700px){ .summary-strip{grid-template-columns:repeat(3,1fr);} }
+  .summary-cell{
+    background:#0d120c; border:1px solid var(--line); border-radius:8px; padding:10px; text-align:center;
+  }
+  .summary-cell .v{font-size:18px; color:var(--green); font-weight:700;}
+  .summary-cell .v.warn{color:var(--red);}
+  .summary-cell .l{font-size:9px; color:var(--text-dim); letter-spacing:1px; margin-top:3px;}
+
+  .autocomplete{position:relative;}
+  .ac-list{
+    position:absolute; top:100%; left:0; right:0; background:#0d140b; border:1px solid var(--line-bright);
+    border-radius:6px; max-height:220px; overflow:auto; z-index:50; margin-top:2px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.6);
+  }
+  .ac-item{padding:9px 10px; font-size:12px; border-bottom:1px solid #1a2117; cursor:pointer;}
+  .ac-item:active, .ac-item.hi{background:var(--green-dim); color:#fff;}
+  .ac-item .code{color:var(--green); font-weight:700; margin-right:8px;}
+  .ac-item .name{color:var(--text-dim); font-size:11px;}
+
+  .plan-list{display:flex; flex-direction:column; gap:8px;}
+  .plan-card{
+    background:var(--bg-card); border:1px solid var(--line); border-radius:8px; padding:12px 14px;
+    display:flex; align-items:center; gap:12px; cursor:pointer;
+  }
+  .plan-card:active{border-color:var(--green-dim);}
+  .plan-card .pc-main{flex:1;}
+  .plan-card .pc-title{font-size:14px; color:var(--green); font-weight:700;}
+  .plan-card .pc-sub{font-size:11px; color:var(--text-dim); margin-top:3px;}
+
+  .empty-state{text-align:center; padding:50px 20px; color:var(--text-dim);}
+  .empty-state .big{font-size:36px; margin-bottom:10px;}
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:var(--green-dim); color:#fff; padding:10px 20px; border-radius:8px;
+    font-size:12px; letter-spacing:0.5px; z-index:200; box-shadow:0 8px 20px rgba(0,0,0,0.5);
+  }
+
+  .pill{display:inline-block; padding:2px 8px; border-radius:10px; font-size:9px; letter-spacing:0.5px; border:1px solid var(--line-bright);}
+  .pill.t-A{color:#8fb3ff; border-color:#8fb3ff;}
+  .pill.t-P{color:var(--green); border-color:var(--green);}
+  .pill.t-T{color:var(--amber); border-color:var(--amber);}
+  .pill.t-H{color:#ff9ed6; border-color:#ff9ed6;}
+  .pill.t-S{color:#c9a0ff; border-color:#c9a0ff;}
+  .pill.t-M{color:var(--text-dim); border-color:var(--line-bright);}
+
+  .hint{font-size:10px; color:var(--text-dim); line-height:1.5; margin-top:6px;}
+
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:300;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal{
+    background:var(--bg-panel); border:1px solid var(--line-bright); border-radius:12px;
+    padding:20px; max-width:560px; width:100%; max-height:88vh; overflow:auto;
+    box-shadow:0 20px 60px rgba(0,0,0,0.6);
+  }
+  .modal h3{margin:0 0 16px 0; font-size:14px; color:var(--green); letter-spacing:1px; text-transform:uppercase;}
+  /* ---- on-screen print area ---- */
+  #printArea{
+    background:var(--bg-card); border:1px solid var(--line); border-radius:10px;
+    padding:16px; margin-top:0;
+  }
+  .print-block{margin-bottom:16px;}
+  .print-map-block{margin-top:8px;}
+  .print-map-block .print-header{ margin-bottom:8px; }
+  .print-map-block .print-meta{ color:var(--text-dim); }
+  .print-map-block .print-meta span{ color:var(--text); }
+  .print-map-block .route-map-svg{ border-radius:6px; }
+
+  .print-header{margin-bottom:10px;}
+  .print-title{font-size:16px; font-weight:700; color:var(--green); letter-spacing:0.5px; margin-bottom:4px;}
+  .print-meta{font-size:12px; color:var(--text-dim);}
+  .print-meta span{color:var(--text);}
+  .print-meta span:not(:first-child)::before{content:' · '; color:var(--text-dim);}
+  .print-section-title{font-size:10px; letter-spacing:2px; color:var(--green); margin-bottom:8px; text-transform:uppercase;}
+  .print-table{width:100%; border-collapse:collapse; font-size:12px; font-family:var(--mono);}
+  .print-table th{
+    text-align:left; color:var(--text-dim); font-size:9px; letter-spacing:1px;
+    padding:6px 6px; border-bottom:1px solid var(--line); white-space:nowrap;
+  }
+  .print-table td{
+    padding:7px 6px; border-bottom:1px solid #1a2117; vertical-align:middle;
+    color:var(--text); white-space:nowrap;
+  }
+  .print-table td b{color:var(--green);}
+  .print-table tr.print-warn td{color:var(--red);}
+  .print-totals{
+    display:flex; flex-wrap:wrap; gap:16px; margin-top:10px;
+    padding-top:8px; border-top:1px solid var(--line);
+    font-size:12px; color:var(--text-dim);
+  }
+  .print-totals b{color:var(--amber);}
+
+  /* ================================================================
+     PRINT STYLES — Chrome-optimized
+     Page 1: NAV table — always LANDSCAPE A4
+     Page 2: Scheme — landscape or portrait depending on route
+     ================================================================ */
+
+  /* Named @page rules — Chrome supports these reliably */
+  @page table-page  { size: A4 landscape; margin: 10mm; }
+  @page map-portrait{ size: A4 portrait;  margin: 10mm; }
+  @page map-landscape{ size: A4 landscape; margin: 10mm; }
+
+  @media print {
+    /* ── Hide everything except #printArea ── */
+    body > *           { display: none !important; }
+    #root              { display: block !important; }
+    .main, #main       { display: block !important; overflow: visible !important; height: auto !important; }
+    #main > *          { display: none !important; }
+    .panel:has(#printArea),
+    #printArea         { display: block !important; }
+    .panel:has(#printArea){
+      background: #fff !important;
+      border: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    /* ── Restore #printArea tree ── */
+    #printArea         { display:block !important; background:#fff !important; color:#000 !important;
+                         border:none !important; padding:0 !important; margin:0 !important; position:static !important; }
+    #printArea *       { visibility: visible !important; }
+    #printArea table   { display: table !important; }
+    #printArea thead   { display: table-header-group !important; }
+    #printArea tbody   { display: table-row-group !important; }
+    #printArea tr      { display: table-row !important; }
+    #printArea th,
+    #printArea td      { display: table-cell !important; }
+    #printArea .btn-row,
+    #printArea .hint   { display: none !important; }
+    #printArea .print-totals { display: flex !important; flex-wrap: wrap !important; }
+    #printArea .print-meta   { display: flex !important; flex-wrap: wrap !important; }
+
+    /* ── Page 1: NAV table — always landscape A4 ── */
+    .print-block {
+      display: block !important;
+      page: table-page;
+      break-after: page;
+    }
+
+    /* ── Page 2: Scheme — single page, no internal breaks ── */
+    .print-map-block {
+      display: flex !important;      /* flex column so SVG fills space */
+      flex-direction: column !important;
+      break-before: page !important;
+      break-inside: avoid !important; /* keep header+map+footer together */
+      padding: 0 !important;
+      margin: 0 !important;
+      /* height = one printed page minus margins (set by JS data attr) */
+      height: var(--map-page-h, 257mm) !important;
+      overflow: hidden !important;
+    }
+    /* Page assignment injected by JS into <style id="pageOrientStyle"> */
+
+    /* SVG stretches to fill remaining vertical space */
+    .route-map-svg {
+      display: block !important;
+      flex: 1 1 auto !important;
+      width: 100% !important;
+      height: 0 !important;       /* flex will grow it */
+      min-height: 0 !important;
+      max-width: none !important;
+      max-height: none !important;
+    }
+
+    /* ── Typography (black-on-white for print) ── */
+    body          { background: #fff !important; margin: 0 !important; }
+    .print-title  { color: #000 !important; font-size: 16px !important; letter-spacing: 0.5px !important; }
+    .print-meta   { color: #000 !important; font-size: 12px !important; }
+    .print-meta span { color: #000 !important; }
+    .print-meta span::before { color: #000 !important; }
+    .print-block  { margin: 0 !important; }
+    .print-map-block .print-header { margin-bottom: 4px !important; flex-shrink: 0 !important; }
+    .print-map-block .print-totals { margin-top:  4px !important; flex-shrink: 0 !important; }
+
+    /* ── Table styling ── */
+    .print-table  { border-collapse: collapse !important; width: 100% !important; font-size: 12px !important; }
+    .print-table th { color:#000 !important; background:none !important; border-bottom:1px solid #999 !important; padding:6px 6px !important; font-size:9px !important; }
+    .print-table td { color:#000 !important; border-bottom:1px solid #ccc !important; padding:7px 6px !important; }
+    .print-table td b { color:#000 !important; font-weight:700 !important; }
+    .print-table tr.print-warn td { color:#c00 !important; font-weight:700 !important; }
+    .print-totals { border-top:1px solid #999 !important; color:#000 !important; padding-top:6px !important; font-size:11px !important; background:none !important; }
+    .print-totals b { color:#000 !important; }
+    .print-header { margin-bottom: 6px !important; }
+
+    /* ── SVG map: white background for print ── */
+    #routeSvg rect:first-child { fill: #fff !important; }
+    #routeSvg { display: block !important; }
+  }
+</style>
+</head>
+<body>
+<div id="root">
+  <div class="topbar">
+    <div class="logo">NAV PLAN <small>· iPad</small></div>
+    <div class="tabs">
+      <div class="tab active" data-view="plans">ПЛАНЫ</div>
+      <div class="tab disabled" data-view="nav">NAV</div>
+      <div class="tab disabled" data-view="print">ПЕЧАТЬ</div>
+      <div class="tab" data-view="db">БАЗА</div>
+    </div>
+  </div>
+  <div class="main" id="main"></div>
+</div>
+
+<script type="application/json" id="refdata">{"wpt":[{"type":"A","name":"CHIRCHIQ AER.","code":"UZTC","lat":41.51696305555556,"lon":69.57541444444443,"elev":2262},{"type":"T","name":"RWY 06","code":"TC06","lat":41.50555555555555,"lon":69.5625,"elev":null},{"type":"T","name":"RWY 24","code":"TC24","lat":41.51583333333333,"lon":69.58805555555556,"elev":null},{"type":"T","name":"RWY 08","code":"TC08","lat":41.515,"lon":69.56138888888889,"elev":null},{"type":"T","name":"RWY 26","code":"TC26","lat":41.51881222222222,"lon":69.58956694444444,"elev":null},{"type":"T","name":null,"code":"TC301","lat":41.52472222222222,"lon":69.63388888888889,"elev":null},{"type":"T","name":null,"code":"TC302","lat":41.48527777777778,"lon":69.64305555555556,"elev":null},{"type":"T","name":null,"code":"TC303","lat":41.465,"lon":69.48916666666666,"elev":null},{"type":"T","name":null,"code":"TC304","lat":41.504444444444445,"lon":69.48,"elev":null},{"type":"T","name":"Outter Marker","code":"CR513","lat":41.5075,"lon":69.50277777777778,"elev":null},{"type":"T","name":"Medium Marker","code":"C250","lat":41.51361111111111,"lon":69.54944444444445,"elev":null},{"type":"P","name":null,"code":"TENBU","lat":41.391666666666666,"lon":69.65166666666667,"elev":null},{"type":"P","name":null,"code":"UTAGA","lat":41.205000000000005,"lon":69.53,"elev":null},{"type":"P","name":null,"code":"USOLO","lat":40.975,"lon":69.38666666666667,"elev":null},{"type":"P","name":null,"code":"EDOSU","lat":39.816111111111105,"lon":67.6236111111111,"elev":null},{"type":"P","name":null,"code":"USETU","lat":39.42833333333333,"lon":67.24333333333334,"elev":null},{"type":"P","name":null,"code":"REBNA","lat":38.599444444444444,"lon":66.77055555555556,"elev":null},{"type":"P","name":null,"code":"LAVMI","lat":38.106944444444444,"lon":67.09694444444445,"elev":null},{"type":"P","name":null,"code":"FIZLE","lat":37.69333333333333,"lon":67.05277777777778,"elev":null},{"type":"P","name":null,"code":"OGNOB","lat":39.74333333333333,"lon":66.405,"elev":null},{"type":"P","name":null,"code":"INDUD","lat":38.61833333333333,"lon":66.23833333333333,"elev":null},{"type":"P","name":null,"code":"INVOR","lat":38.06055555555555,"lon":66.93916666666667,"elev":null},{"type":"P","name":null,"code":"BITFO","lat":40.481388888888894,"lon":68.79861111111111,"elev":null},{"type":"A","name":"JIZZAX AERODROMI","code":"UZTD","lat":40.25277777777778,"lon":67.91083333333334,"elev":1024},{"type":"H","name":"ROHAT (ARTEL)","code":"ROHAT","lat":41.26444444444444,"lon":69.36666666666666,"elev":1470},{"type":"P","name":null,"code":"LELBA","lat":40.915,"lon":69.795,"elev":null},{"type":"P","name":null,"code":"TISIB","lat":41.098333333333336,"lon":70.24166666666667,"elev":null},{"type":"P","name":null,"code":"BAKMO","lat":40.446666666666665,"lon":71.26833333333333,"elev":null},{"type":"P","name":null,"code":"ESIBO","lat":41.069722222222225,"lon":70.565,"elev":null},{"type":"A","name":"FARG'ONA AEROPORTI","code":"UZFF","lat":40.358333333333334,"lon":71.74472222222222,"elev":2008},{"type":"S","name":"ANGREN SHAHRI","code":"ANGRN","lat":41.011944444444445,"lon":70.08166666666666,"elev":null},{"type":"A","name":"KAKAYDI AERODROMI","code":"UTSO","lat":37.62361111111111,"lon":67.5175,"elev":1243},{"type":"S","name":"S.AMUZANG","code":"AMZNG","lat":37.2525,"lon":67.71916666666667,"elev":null},{"type":"S","name":"OTM.512","code":"512","lat":37.3525,"lon":67.61666666666666,"elev":null},{"type":"H","name":"AMUZANG YAQINIDAGI","code":"H12","lat":37.19583333333333,"lon":67.79333333333334,"elev":null},{"type":"H","name":"KAMPIRABOT","code":"KAMPR","lat":40.79944444444444,"lon":73.10527777777777,"elev":null},{"type":"H","name":"IMOMOTA POLIGON","code":"IMOTP","lat":40.530277777777776,"lon":72.63,"elev":null},{"type":"H","name":"BULOQBOSHI","code":"BULOQ","lat":40.634166666666665,"lon":72.50583333333333,"elev":1014},{"type":"H","name":"MARXAMAT","code":"MARXT","lat":40.49916666666667,"lon":72.33,"elev":1470},{"type":"H","name":"ASAKA","code":"ASAKA","lat":40.64722222222222,"lon":72.24777777777778,"elev":null},{"type":"H","name":"KARABAGISH","code":"KARAB","lat":40.51305555555555,"lon":72.3611111111111,"elev":null},{"type":"H","name":"RAVAT","code":"RAVAT","lat":40.50361111111111,"lon":72.2388888888889,"elev":null},{"type":"H","name":"SHAXRIXON","code":"SHRXN","lat":40.72527777777778,"lon":72.05444444444444,"elev":null},{"type":"H","name":"DILKUSHOT","code":"DLKSH","lat":40.59777777777778,"lon":72.66861111111112,"elev":2052},{"type":"H","name":"REZIDENTSIYA ANDIJON*","code":"REZAN","lat":40.85166666666667,"lon":72.3125,"elev":null},{"type":"H","name":"YANGI ANDIJAN","code":"YNGAN","lat":40.79666666666667,"lon":72.44833333333334,"elev":1243},{"type":"H","name":"PAXTAOBOD","code":"PAXTB","lat":40.97027777777778,"lon":72.47083333333333,"elev":null},{"type":"H","name":"O`QCHI","code":"UKCHI","lat":40.59805555555556,"lon":72.32527777777777,"elev":null},{"type":"H","name":"SHHO","code":"SHHO","lat":40.42527777777777,"lon":71.69111111111111,"elev":1024},{"type":"H","name":"VINOGRADNIK","code":"VINOG","lat":40.331944444444446,"lon":71.45083333333334,"elev":null},{"type":"H","name":"QUVA POLIGON","code":"QUVAP","lat":40.4525,"lon":72.03944444444444,"elev":null},{"type":"H","name":"FARGONA POLIGON","code":"FRPOL","lat":40.318333333333335,"lon":71.71194444444444,"elev":null},{"type":"H","name":"QO`SHTEPA","code":"QOSHT","lat":40.47027777777778,"lon":71.71444444444445,"elev":null},{"type":"H","name":"YOZYOVON","code":"YOZVN","lat":40.64333333333333,"lon":71.74444444444444,"elev":null},{"type":"H","name":"NBP SHORSU","code":"SHOR1","lat":40.327222222222225,"lon":70.77694444444444,"elev":null},{"type":"H","name":"YAYPAN","code":"YAYPN","lat":40.32277777777778,"lon":70.64083333333333,"elev":null},{"type":"H","name":"SHORSUV","code":"SHOR2","lat":40.28472222222222,"lon":70.68083333333334,"elev":null},{"type":"H","name":"RAVOT","code":"RAVOT","lat":40.37277777777778,"lon":70.57416666666666,"elev":null},{"type":"H","name":"BESHARIQ","code":"5ARIQ","lat":40.43555555555555,"lon":70.62194444444444,"elev":null},{"type":"H","name":"FURQAT","code":"FURQT","lat":40.48583333333333,"lon":70.80555555555556,"elev":null},{"type":"H","name":"BAXMAL FABRIKASI","code":"FABBX","lat":40.54666666666667,"lon":71.06916666666666,"elev":null},{"type":"H","name":"UCH KOPRIK","code":"3KOPR","lat":40.546388888888885,"lon":71.0525,"elev":null},{"type":"H","name":"DABG'ARA","code":"DABGR","lat":40.580000000000005,"lon":70.9238888888889,"elev":null},{"type":"H","name":"BOG'DOD","code":"BGDAD","lat":40.467777777777776,"lon":71.2,"elev":null},{"type":"H","name":"RISHTON1","code":"RISH1","lat":40.3525,"lon":71.28027777777778,"elev":null},{"type":"H","name":"RISHTON 2","code":"RISH2","lat":40.38444444444444,"lon":71.255,"elev":null},{"type":"H","name":"QUVASOY","code":"QUVAS","lat":40.3,"lon":71.98138888888889,"elev":null},{"type":"H","name":"SHOXIMARDON","code":"SHAXM","lat":39.97527777777778,"lon":71.7975,"elev":null},{"type":"H","name":"SO'X","code":"PLSOX","lat":39.936388888888885,"lon":71.10277777777777,"elev":null},{"type":"H","name":"SO'X AEROPORTI","code":"UTFS","lat":39.98833333333334,"lon":71.12472222222222,"elev":null},{"type":"H","name":"SO'X DSHB","code":"DSHB","lat":39.939166666666665,"lon":71.16166666666668,"elev":null},{"type":"H","name":"UCH QO'RG'ON","code":"3KURG","lat":41.14972222222222,"lon":72.11666666666666,"elev":null},{"type":"H","name":"KASKAD1","code":"KSKD1","lat":41.09166666666667,"lon":72.03722222222223,"elev":null},{"type":"H","name":"CHORTOQ","code":"CHRTQ","lat":41.17472222222222,"lon":71.80916666666667,"elev":null},{"type":"H","name":"YANGI QO'RG'ON","code":"YKBAS","lat":41.218611111111116,"lon":71.74944444444445,"elev":null},{"type":"H","name":"FOLIMIX","code":"FOLMX","lat":41.15277777777778,"lon":71.53944444444444,"elev":null},{"type":"H","name":"CHUST","code":"CHUST","lat":41.00222222222222,"lon":71.23083333333334,"elev":null},{"type":"H","name":"G'URUMSAROY 1","code":"GURUM","lat":40.81222222222222,"lon":70.86972222222222,"elev":null},{"type":"H","name":"G'URUMSAROY 2","code":"GURPL","lat":40.85777777777778,"lon":70.845,"elev":null},{"type":"H","name":"NEXT SOLAR 1","code":"SOLR1","lat":40.81472222222222,"lon":70.75583333333333,"elev":null},{"type":"H","name":"NEXT SOLAR 2","code":"SOLR2","lat":40.85472222222222,"lon":70.7375,"elev":null},{"type":"H","name":"OLTINKON","code":"OLTTM","lat":41.03194444444444,"lon":70.61416666666666,"elev":null},{"type":"H","name":"DOVON","code":"DOVON","lat":41.083333333333336,"lon":70.5411111111111,"elev":null},{"type":"H","name":"SARIDALA (GES)","code":"SRDLA","lat":41.153055555555554,"lon":70.44166666666668,"elev":null},{"type":"H","name":"ARASHAN","code":"ARASH","lat":41.36,"lon":70.51694444444445,"elev":null},{"type":"H","name":"OYQAYIN ","code":"OYQAI","lat":42.16166666666666,"lon":70.87138888888889,"elev":null},{"type":"H","name":"MAYDONTOL","code":"MYTOL","lat":41.99638888888889,"lon":70.63833333333334,"elev":null},{"type":"H","name":"PSKEM GES","code":"PSKEM","lat":41.82277777777778,"lon":70.26277777777777,"elev":null},{"type":"H","name":"QAYNARSOY","code":"QAYNR","lat":41.69555555555555,"lon":70.00527777777778,"elev":null},{"type":"H","name":"QUYI SIDJAK*","code":"SIDJK","lat":41.668055555555554,"lon":70.03111111111112,"elev":null},{"type":"H","name":"PIRAMIDA","code":"PIRAM","lat":41.61194444444445,"lon":70.01972222222223,"elev":null},{"type":"H","name":"GORNIY","code":"CHTTM","lat":41.53055555555555,"lon":70.03194444444445,"elev":5394},{"type":"H","name":"QIZILJAR (CHIMYON)","code":"QZJAR","lat":41.52777777777778,"lon":70.02277777777778,"elev":null},{"type":"H","name":"AMIRSOY","code":"AMIRS","lat":41.48777777777778,"lon":69.93861111111111,"elev":null},{"type":"H","name":"G'AZALKENT PL","code":"PL11","lat":41.580000000000005,"lon":69.82777777777777,"elev":null},{"type":"H","name":"G'AZALKENT H/Q","code":"10MOK","lat":41.602222222222224,"lon":69.78,"elev":null},{"type":"H","name":"SOLNECHNIY (INSTITUT)","code":"SOLNC","lat":41.31388888888888,"lon":69.73916666666666,"elev":null},{"type":"H","name":"PARKENT","code":"PRKEN","lat":41.29333333333333,"lon":69.66555555555556,"elev":null},{"type":"H","name":"OHANGARON SUV.OMBORI","code":"OHNSO","lat":41.046388888888885,"lon":70.21138888888889,"elev":null},{"type":"H","name":"ANGREN","code":"ANGR0","lat":41.06666666666667,"lon":70.08805555555556,"elev":null},{"type":"H","name":"ANGREN VOKZAL","code":"ANGR1","lat":41,"lon":70.08194444444445,"elev":null},{"type":"H","name":"ANGREN 2","code":"ANGR2","lat":41.01611111111111,"lon":70.11027777777777,"elev":null},{"type":"H","name":"ANGREN H/Q","code":"27MSB","lat":40.99305555555556,"lon":70.05555555555556,"elev":null},{"type":"H","name":"ANGREN","code":"ANGRP","lat":40.97638888888889,"lon":69.94888888888889,"elev":null},{"type":"H","name":"OHANGARON","code":"OHNGR","lat":40.91777777777777,"lon":69.65472222222223,"elev":null},{"type":"H","name":"OLMALIQ SMOTREVOY","code":"SMOTR","lat":40.81333333333333,"lon":69.54888888888888,"elev":null},{"type":"H","name":"!SEMECHKA ZAVOD","code":"POROX","lat":40.98027777777778,"lon":69.56166666666667,"elev":null},{"type":"H","name":"BO'KA","code":"BUKA","lat":40.81083333333333,"lon":69.19527777777778,"elev":null},{"type":"H","name":"BEKABOD","code":"BEKAB","lat":40.21194444444445,"lon":69.285,"elev":null},{"type":"H","name":"HAS","code":"HASS","lat":40.28666666666666,"lon":69.18277777777779,"elev":null},{"type":"H","name":"YANGI YO'L H/Q","code":"YNYUL","lat":41.14388888888889,"lon":69.04944444444445,"elev":null},{"type":"H","name":"SOLNECHNIY H/Q","code":"SOLNE","lat":41.195277777777775,"lon":69.13027777777778,"elev":null},{"type":"H","name":" TATU MF (СФ ТУИТ)","code":"TATU","lat":41.20916666666667,"lon":9.1375,"elev":null},{"type":"H","name":"TOSHKENT ","code":"METAL","lat":41.17611111111111,"lon":69.20805555555556,"elev":null},{"type":"H","name":"16-SONLI KASALXONA","code":"16GB","lat":41.26888888888889,"lon":69.20305555555557,"elev":null},{"type":"H","name":"1-SONLI KASALXONA","code":"PERIN","lat":41.32166666666667,"lon":69.2175,"elev":null},{"type":"H","name":"IIV","code":"PLIIV","lat":41.303888888888885,"lon":69.26388888888889,"elev":null},{"type":"H","name":"FVV","code":"PLFVV","lat":41.33444444444444,"lon":69.28194444444445,"elev":null},{"type":"H","name":"QK AKAMEMIYASI","code":"TVOKU","lat":41.31916666666667,"lon":69.30749999999999,"elev":null},{"type":"H","name":"O'R MV","code":"PLMV","lat":41.33361111111111,"lon":69.33583333333333,"elev":null},{"type":"H","name":"THO","code":"THO","lat":41.33527777777778,"lon":69.33972222222222,"elev":null},{"type":"H","name":"ICH.ISH AKADEMIYASI","code":"PLIIA","lat":41.32611111111112,"lon":9.364722222222222,"elev":null},{"type":"P","name":null,"code":"IPNAR","lat":42.74333333333333,"lon":59.11333333333334,"elev":null},{"type":"H","name":"MILLIY GVARDIYA","code":"MGB","lat":41.25694444444444,"lon":69.3611111111111,"elev":null},{"type":"H","name":"OVP (YO'LNI USTI)","code":"OVP","lat":41.34166666666667,"lon":69.4063888888889,"elev":null},{"type":"H","name":"OVP1 (MARJON)","code":"OVP1","lat":41.35583333333334,"lon":69.40027777777779,"elev":null},{"type":"H","name":"OVP2 (KO'R SAROY)","code":"OVP2","lat":41.36333333333334,"lon":69.40611111111112,"elev":null},{"type":"H","name":"OVP3 (XOZ.DVOR)","code":"OVP3","lat":41.35638888888889,"lon":69.40666666666667,"elev":null},{"type":"H","name":"KLASTER","code":"KLAST","lat":41.14111111111111,"lon":69.21444444444445,"elev":null},{"type":"H","name":"MALIK","code":"MALIK","lat":40.811388888888885,"lon":68.64833333333334,"elev":null},{"type":"H","name":"SAYXUN","code":"SAYXN","lat":40.8875,"lon":68.66916666666667,"elev":null},{"type":"H","name":"PAXTAKOR","code":"SPLTX","lat":40.61944444444445,"lon":68.82388888888889,"elev":null},{"type":"H","name":"OQ OLTIN","code":"AKALT","lat":40.60444444444445,"lon":68.72805555555556,"elev":null},{"type":"H","name":"GULISTON","code":"GULIS","lat":40.49944444444444,"lon":68.78222222222222,"elev":null},{"type":"H","name":"MIRZO OBOD","code":"MROBD","lat":40.494166666666665,"lon":68.69972222222222,"elev":null},{"type":"H","name":"BOYOVUT","code":"BOYVT","lat":40.29388888888889,"lon":69.02472222222222,"elev":null},{"type":"H","name":"SHIRIN","code":"8MOKB","lat":40.22555555555556,"lon":69.11694444444444,"elev":null},{"type":"H","name":"SARDOBA","code":"SARBD","lat":40.341944444444444,"lon":68.18333333333334,"elev":null},{"type":"H","name":"KIA","code":"KIA","lat":40.21361111111111,"lon":67.94444444444444,"elev":null},{"type":"H","name":"DEYA","code":"DEYA","lat":40.156666666666666,"lon":67.90805555555556,"elev":null},{"type":"H","name":"JIZZAX ORGANIK","code":"ORANC","lat":40.186388888888885,"lon":68.55055555555555,"elev":null},{"type":"H","name":"ZOMIN AEROPORT","code":"UTTZ","lat":39.969166666666666,"lon":68.54444444444444,"elev":null},{"type":"H","name":"ZOMIN","code":"ZOMN1","lat":40.018055555555556,"lon":68.43333333333334,"elev":null},{"type":"H","name":"QUYI SUFA","code":"SUFA1","lat":39.63333333333333,"lon":8.557500000000001,"elev":null},{"type":"H","name":"YUQORI SUFA","code":"SUFA2","lat":39.625,"lon":8.469444444444445,"elev":null},{"type":"H","name":"BAXMAL","code":"6MOKB","lat":39.684999999999995,"lon":68.05527777777777,"elev":4770},{"type":"H","name":"SHAROF RASHIDOV","code":"SAROF","lat":40.06305555555555,"lon":67.83527777777778,"elev":null},{"type":"H","name":"JIZZAX","code":"JIZX","lat":40.13333333333333,"lon":67.82194444444444,"elev":null},{"type":"H","name":"FORISH","code":"FORIS","lat":40.294444444444444,"lon":67.53194444444445,"elev":null},{"type":"H","name":"DUSHMAN GOROD.","code":"DGRDK","lat":40.26222222222222,"lon":67.49,"elev":null},{"type":"H","name":"OLMACHI","code":"OLMAC","lat":40.086111111111116,"lon":67.90194444444445,"elev":null},{"type":"H","name":"UZUN BULOQ","code":"UZNBL","lat":39.67166666666667,"lon":67.50111111111111,"elev":null},{"type":"H","name":"BULUNG'UR H/Q","code":"BLNGR","lat":39.689722222222215,"lon":67.3175,"elev":null},{"type":"H","name":"YEC GILAM","code":"GILAM","lat":39.41888888888889,"lon":67.13277777777778,"elev":null},{"type":"H","name":"GREBNOY KANAL 1","code":"GREB1","lat":39.659444444444446,"lon":67.06583333333333,"elev":null},{"type":"H","name":"GREBNOY KANAL 2","code":"GREB2","lat":39.65472222222222,"lon":67.07638888888889,"elev":null},{"type":"H","name":"SHPS","code":"SHPS","lat":39.6825,"lon":66.89444444444445,"elev":null},{"type":"H","name":"METALLURGIYA","code":"SMZ","lat":39.63583333333333,"lon":66.87305555555555,"elev":null},{"type":"H","name":"SAZAGAN","code":"SZGAN","lat":39.53388888888889,"lon":66.69027777777778,"elev":null},{"type":"H","name":"KATTA QO'RG'ON 3","code":"49ABR","lat":39.903055555555554,"lon":66.27166666666666,"elev":null},{"type":"H","name":"KATTA QO'RG'ON 2","code":"3TOCH","lat":39.59138888888889,"lon":65.70777777777778,"elev":null},{"type":"H","name":"KATTA QO'RG'ON 1","code":"KQPOL","lat":39.67861111111111,"lon":65.63527777777779,"elev":null},{"type":"H","name":"!KOSON","code":"MEZ","lat":39.071111111111115,"lon":65.58583333333333,"elev":null},{"type":"H","name":"MUBORAK 2","code":"5TBR","lat":39.239444444444445,"lon":65.17083333333333,"elev":null},{"type":"H","name":"MUBORAK 1","code":"MBPOL","lat":39.18277777777777,"lon":65.06361111111111,"elev":null},{"type":"H","name":"UCHILISHE","code":"OHAI","lat":38.856944444444444,"lon":65.81666666666666,"elev":null},{"type":"H","name":"NURISTON H/Q","code":"NURHQ","lat":38.503055555555555,"lon":65.63611111111112,"elev":null},{"type":"H","name":"TALIMARJON","code":"TLMRJ","lat":38.299166666666665,"lon":65.56138888888889,"elev":null},{"type":"H","name":"UZ GTL","code":"UZGTL","lat":38.46222222222222,"lon":65.79861111111111,"elev":null},{"type":"H","name":"NURISTON ","code":"NRPOL","lat":38.57222222222222,"lon":65.41000000000001,"elev":null},{"type":"H","name":"KAMASHI","code":"KAMPL","lat":38.83861111111111,"lon":65.4025,"elev":null},{"type":"H","name":"MIRISHKOR","code":"MIRSH","lat":38.84805555555556,"lon":65.26416666666667,"elev":null},{"type":"H","name":"PACHKAMAR","code":"1MOKB","lat":38.55361111111111,"lon":66.36888888888888,"elev":null},{"type":"H","name":"GELON 1","code":"GELAN","lat":39.09,"lon":67.47611111111111,"elev":null},{"type":"H","name":"KUL 1","code":"KUL1","lat":39.121944444444445,"lon":67.5286111111111,"elev":null},{"type":"H","name":"KUL 2","code":"KUL2","lat":39.159444444444446,"lon":67.52361111111111,"elev":null},{"type":"H","name":"MAYDON","code":"2MOKB","lat":37.73111111111111,"lon":66.79388888888889,"elev":2808},{"type":"H","name":"SHERABOD 1","code":"SHER1","lat":37.54055555555556,"lon":66.87527777777777,"elev":null},{"type":"H","name":"SHERABOD 2","code":"SHER2","lat":37.611111111111114,"lon":66.93972222222223,"elev":null},{"type":"H","name":"SHERABOD 3","code":"SHER3","lat":37.65083333333333,"lon":67.00777777777778,"elev":null},{"type":"H","name":"AT-TERMIZIY","code":"ATRMZ","lat":37.67861111111111,"lon":67.07944444444443,"elev":null},{"type":"H","name":"ANGOR","code":"ANGOR","lat":37.405,"lon":67.19611111111111,"elev":null},{"type":"H","name":"MUZRABOD","code":"MUZRA","lat":37.42666666666666,"lon":66.95,"elev":null},{"type":"H","name":"TERMIZ H/Q","code":"7MOKB","lat":37.22222222222222,"lon":67.26583333333333,"elev":null},{"type":"H","name":"TERMIZ 1","code":"TRPOL","lat":37.285555555555554,"lon":67.39694444444446,"elev":null},{"type":"H","name":"AMUZANG","code":"AMUZG","lat":37.19611111111111,"lon":67.79194444444444,"elev":null},{"type":"H","name":"AMUZANG 1","code":"AMUZ1","lat":37.20583333333334,"lon":67.79305555555555,"elev":null},{"type":"H","name":"KAKAYDI H/Q","code":"23ABR","lat":37.57083333333334,"lon":67.5111111111111,"elev":null},{"type":"H","name":"XAYRABOD H/Q","code":"21MOB","lat":38.16972222222222,"lon":67.8875,"elev":1621},{"type":"H","name":"SARIOSIYO H/Q","code":"111BR","lat":38.405,"lon":67.95833333333334,"elev":null},{"type":"H","name":"ZARCHOB","code":"ZARCH","lat":38.53333333333333,"lon":67.83666666666666,"elev":null},{"type":"H","name":"TO'PALANG","code":"TOPLN","lat":38.586111111111116,"lon":67.79944444444445,"elev":null},{"type":"H","name":"ZEVAR","code":"ZEVAR","lat":38.69777777777777,"lon":67.90833333333335,"elev":null},{"type":"H","name":"ZAMBAK","code":"ZAMBK","lat":38.7625,"lon":67.82277777777777,"elev":null},{"type":"H","name":"KISHTUT","code":"KISHT","lat":38.85416666666667,"lon":67.905,"elev":null},{"type":"H","name":"TAMSHUSH","code":"TAMSH","lat":38.89388888888889,"lon":67.71583333333334,"elev":null},{"type":"H","name":"SANGARDAK","code":"SANGD","lat":38.54833333333333,"lon":67.52694444444444,"elev":null},{"type":"H","name":"TOSHQO'RG'ON","code":"TOSHQ","lat":38.76722222222222,"lon":67.24916666666667,"elev":null},{"type":"H","name":"KOGON 1","code":"KOGN1","lat":39.57972222222222,"lon":64.47277777777778,"elev":null},{"type":"H","name":"KOGON 2","code":"KOGN2","lat":39.584722222222226,"lon":64.48222222222222,"elev":null},{"type":"H","name":"MURUNTOV","code":"MURUN","lat":41.525555555555556,"lon":64.59861111111111,"elev":null},{"type":"H","name":"KULQUDUQ","code":"KULQD","lat":42.53388888888889,"lon":63.28777777777778,"elev":null},{"type":"H","name":"UCH QUDUQ","code":"3QUDQ","lat":42.08277777777778,"lon":63.45111111111111,"elev":null},{"type":"H","name":"PITNAK","code":"PITNK","lat":41.223888888888894,"lon":61.279444444444444,"elev":null},{"type":"H","name":"BOG'OT MAYDONCHA","code":"BOGOT","lat":41.348888888888894,"lon":60.816944444444445,"elev":null},{"type":"H","name":"FAROVON","code":"FRVON","lat":41.402499999999996,"lon":60.37638888888889,"elev":null},{"type":"H","name":"TO'RTKO'L","code":"4KUL","lat":41.56527777777777,"lon":60.96888888888889,"elev":null},{"type":"H","name":"BERUNIY MAYDONCHASI","code":"BERUN","lat":41.67972222222222,"lon":60.725,"elev":null},{"type":"H","name":"ELLIK QAL'A","code":"50QLA","lat":41.846111111111114,"lon":60.9,"elev":null},{"type":"H","name":"AMUDARYO 1","code":"AMUD1","lat":42.07944444444445,"lon":60.276944444444446,"elev":null},{"type":"H","name":"AMUDARYO 2","code":"AMUD2","lat":42.22555555555556,"lon":60.12027777777778,"elev":null},{"type":"H","name":"TOXIYATOSH","code":"TAXTS","lat":42.331944444444446,"lon":59.57666666666667,"elev":null},{"type":"H","name":"XO'JAYLI","code":"XUJAY","lat":42.414722222222224,"lon":59.45722222222223,"elev":null},{"type":"H","name":"NUKUS 1","code":"NUKS1","lat":42.42722222222222,"lon":59.634166666666665,"elev":null},{"type":"H","name":"OQ MANG'IT","code":"OQMNG","lat":42.593333333333334,"lon":59.67194444444444,"elev":null},{"type":"H","name":"KEGEYLI","code":"KGYLI","lat":42.75888888888889,"lon":59.63027777777778,"elev":null},{"type":"H","name":"SHIMBAY","code":"SHBAY","lat":42.870555555555555,"lon":59.75805555555556,"elev":null},{"type":"H","name":"KARAUZYAK 1","code":"KRUZ1","lat":43.030277777777776,"lon":60.00055555555556,"elev":null},{"type":"H","name":"TAXTA KO'PIR","code":"TAXTA","lat":43.03805555555555,"lon":60.26,"elev":197},{"type":"H","name":"BELTAU 2","code":"BELT2","lat":43.14972222222222,"lon":60.50888888888889,"elev":197},{"type":"H","name":"BELTAU 1","code":"BELT1","lat":43.153888888888886,"lon":60.47916666666667,"elev":190},{"type":"H","name":"KARATEREN","code":"KARTR","lat":43.22166666666667,"lon":60.39666666666667,"elev":174},{"type":"H","name":"KARAUZYAK 2","code":"KRUZ2","lat":43.21,"lon":60.04555555555555,"elev":null},{"type":"H","name":"KARAUZYAK 3","code":"KRUZ3","lat":44.25833333333333,"lon":60.32333333333334,"elev":null},{"type":"H","name":"KAZAKDARYO","code":"KAZAK","lat":43.3725,"lon":59.617222222222225,"elev":177},{"type":"H","name":"BOZATAU","code":"BAZTU","lat":42.992222222222225,"lon":59.34,"elev":203},{"type":"H","name":"QANGLI KO'L","code":"QANKL","lat":42.82138888888889,"lon":59.00111111111111,"elev":null},{"type":"H","name":"SHUMANAY","code":"SHMNY","lat":42.63305555555556,"lon":58.92055555555555,"elev":null},{"type":"H","name":"JANA-BIRLIK","code":"JANBR","lat":43.03138888888889,"lon":58.73111111111111,"elev":null},{"type":"H","name":"KO'NG'IROT","code":"KUNGR","lat":43.04694444444444,"lon":58.85472222222222,"elev":null},{"type":"A","name":"KO'NG'IROT AEROPRTI","code":"UTNK","lat":43.08222222222223,"lon":58.88472222222222,"elev":180},{"type":"H","name":"QIRQ QIZ","code":"40QIZ","lat":43.13166666666667,"lon":58.215833333333336,"elev":null},{"type":"H","name":"QIRG'IZCHALAK","code":"QCHLK","lat":43.183055555555555,"lon":58.26611111111111,"elev":null},{"type":"H","name":"QIZILJAR","code":"QIZJR","lat":43.577222222222225,"lon":59.081388888888895,"elev":null},{"type":"H","name":"MO'YNAQ","code":"MYNAQ","lat":43.79,"lon":59.03194444444444,"elev":null},{"type":"H","name":"USTYURT","code":"USTYR","lat":44.025555555555556,"lon":58.25416666666667,"elev":null},{"type":"H","name":"NULEVAYA TOCHKA","code":"NULEV","lat":44.153055555555554,"lon":58.856944444444444,"elev":null},{"type":"H","name":"ARSLON","code":"ARSLN","lat":44.00861111111111,"lon":58.76305555555555,"elev":null},{"type":"H","name":"SURGIL","code":"SURGL","lat":44.03527777777778,"lon":58.6975,"elev":null},{"type":"H","name":"AKCHALAK","code":"AKCHA","lat":43.96361111111111,"lon":57.51611111111111,"elev":null},{"type":"H","name":"JASLIQ","code":"JASLQ","lat":44.05416666666667,"lon":57.547777777777775,"elev":null},{"type":"H","name":"KARAKALPAKIYA","code":"KRKAL","lat":44.77777777777778,"lon":56.19333333333333,"elev":null},{"type":"H","name":"BOJXONA","code":"KRKL1","lat":44.893055555555556,"lon":56.00416666666667,"elev":null},{"type":"H","name":"ARAL PLAZA","code":"ARAPL","lat":44.504444444444445,"lon":58.2325,"elev":95},{"type":"H","name":"KANTUBEK","code":"KANTU","lat":45.16083333333333,"lon":59.30638888888888,"elev":243},{"type":"H","name":"KITAY KAZGAN","code":"KITAY","lat":43.34638888888889,"lon":61.39861111111111,"elev":null},{"type":"H","name":"KOSTURBA","code":"KOSTR","lat":43.48972222222222,"lon":61.59305555555556,"elev":null},{"type":"P","name":null,"code":"UMGAP","lat":38.003055555555555,"lon":67.86666666666666,"elev":null},{"type":"A","name":"SAROSIYO AERODROMI","code":"UTSR","lat":38.410555555555554,"lon":67.94527777777778,"elev":1931},{"type":"S","name":"UZUN","code":"UZUN","lat":38.36638888888889,"lon":68.00666666666666,"elev":null},{"type":"H","name":"UZUN 1-CHEGARA POSTI","code":"KUZ1P","lat":37.93666666666666,"lon":68.24583333333334,"elev":2057},{"type":"S","name":"SHO'RCHI","code":"SHURC","lat":38.01111111111111,"lon":67.79222222222222,"elev":null},{"type":"H","name":"SHO'RCHI 5-CHEGARA POSTI","code":"KSH5P","lat":37.67527777777777,"lon":67.82444444444444,"elev":1650},{"type":"A","name":"TERMEZ AEROPOTRI","code":"UZST","lat":37.2875,"lon":67.30805555555555,"elev":1020},{"type":"A","name":"TOSHKENT SHARQIY AERO.","code":"UZTP","lat":41.312777777777775,"lon":69.3913888888889,"elev":1574},{"type":"H","name":"YANGI O'ZBEKISTON","code":"YNGUZ","lat":41.32638888888889,"lon":69.43777777777778,"elev":1624},{"type":"P","name":null,"code":"ATMAT","lat":41.33555555555556,"lon":69.615,"elev":null},{"type":"P","name":null,"code":"ASNOV","lat":41.29333333333333,"lon":69.58833333333332,"elev":null},{"type":"S","name":"GAZALKENT (G'AZALKENT)","code":"GAZLK","lat":41.57166666666667,"lon":69.7675,"elev":null},{"type":"S","name":"YUSUPXONA","code":"YUSUP","lat":41.61944444444445,"lon":70.04166666666667,"elev":null},{"type":"P","name":null,"code":"LIMGU","lat":41.154444444444444,"lon":68.97555555555556,"elev":null},{"type":"P","name":null,"code":"ABVIS","lat":41.230000000000004,"lon":69.04194444444444,"elev":null},{"type":"A","name":"I.A.KARIMOV","code":"UTTT","lat":41.25666666666667,"lon":69.28166666666667,"elev":1417},{"type":"M","name":"NDB: SR","code":"SR","lat":41.18472222222222,"lon":69.22277777777778,"elev":null},{"type":"A","name":"NUKUS AERODROMI","code":"UZNN","lat":42.48916666666667,"lon":59.62277777777778,"elev":249},{"type":"H","name":"OROL (SHIMOLIY-G'ARBIY)","code":"OROLP","lat":45.2875,"lon":58.70283333333334,"elev":null},{"type":"H","name":"KANTUBEK (VOZRAJDENIYA)","code":"KNBEK","lat":45.15683333333333,"lon":59.30416666666667,"elev":243},{"type":"H","name":"67-KILOMETR","code":"67KM","lat":44.724000000000004,"lon":59.018499999999996,"elev":138},{"type":"A","name":"MO'YNAQ AEROPORTI","code":"UZNM","lat":43.75499777777778,"lon":59.03196111111111,"elev":167},{"type":"H","name":"GEOFIZIKA","code":"GEOFZ","lat":41.33937388888889,"lon":69.40176805555556,"elev":1588},{"type":"H","name":"NAMANGAN REZIDENSIYA","code":"NAMRZ","lat":41.00336333333333,"lon":71.57301472222221,"elev":1703},{"type":"P","name":null,"code":"EKLER","lat":40.68,"lon":71.68833333333333,"elev":null},{"type":"P","name":null,"code":"ATLUD","lat":41.01566666666667,"lon":71.18416666666667,"elev":null},{"type":"S","name":"PUNGAN QISHLOG'I","code":"PUNGN","lat":40.74236944444444,"lon":70.83418138888888,"elev":null},{"type":"A","name":"QO'QON AERODROMI","code":"UTFK","lat":40.44948055555555,"lon":70.99704333333334,"elev":1634},{"type":"A","name":"ANDIJON AEROPORTI","code":"UTFA","lat":40.72707527777778,"lon":72.29266083333333,"elev":1568},{"type":"P","name":null,"code":"DIKRI","lat":40.82833333333333,"lon":71.92833333333334,"elev":null},{"type":"S","name":"AZADBASH","code":"AZADB","lat":41.530833333333334,"lon":69.63583333333334,"elev":null},{"type":"S","name":"GIDJAL","code":"GIDJL","lat":41.44027777777777,"lon":69.85333333333332,"elev":null},{"type":"S","name":"KARANKUL","code":"KRNKL","lat":41.60138888888889,"lon":69.87777777777777,"elev":null},{"type":"S","name":"KARAMAZAR","code":"KRMZR","lat":41.49333333333333,"lon":69.80888888888889,"elev":null},{"type":"S","name":"QIZILTAU","code":"QYZIL","lat":41.47805555555556,"lon":69.67055555555557,"elev":null},{"type":"S","name":"MOST (4-MARSHRUT)","code":"MOST4","lat":41.414722222222224,"lon":69.89444444444445,"elev":null},{"type":"S","name":"KANGLI, TOSHKENT","code":"KNGLI","lat":41.15222222222222,"lon":69.56138888888889,"elev":null},{"type":"S","name":"NURAFSHON, TOSHKENT","code":"NURFS","lat":41.040277777777774,"lon":69.35944444444443,"elev":null},{"type":"S","name":"GULISTON, SIRDARYO","code":"GULST","lat":40.49055555555556,"lon":68.76555555555555,"elev":null},{"type":"S","name":"URGUR, SAMARQAND","code":"URGUT","lat":39.42055555555555,"lon":67.23944444444444,"elev":null},{"type":"S","name":"QOROVUL TEPA SUV OMBORI","code":"KARUL","lat":39.84305555555556,"lon":67.52305555555556,"elev":null},{"type":"S","name":"MUCHOQ, SURXONDARYO","code":"MUNCH","lat":38.05027777777777,"lon":67.01138888888889,"elev":null},{"type":"S","name":"SHERABOD, SURXONDARYO","code":"SHERB","lat":37.668055555555554,"lon":67.00861111111111,"elev":null},{"type":"P","name":null,"code":"INBOG","lat":41.23166666666667,"lon":69.04166666666667,"elev":null},{"type":"P","name":null,"code":"KOLIX","lat":40.78972222222222,"lon":71.25277777777778,"elev":null},{"type":"A","name":"NAMANGAN AEROPORTI","code":"UTFN","lat":40.985,"lon":71.55694444444444,"elev":1705},{"type":"P","name":null,"code":"UFRUX","lat":40.743611111111115,"lon":70.9075,"elev":null},{"type":"P","name":null,"code":"BAMGU","lat":40.57472222222223,"lon":68.76555555555555,"elev":null},{"type":"P","name":null,"code":"TITAR","lat":40.13,"lon":67.77166666666666,"elev":null},{"type":"P","name":null,"code":"RONVU","lat":39.751666666666665,"lon":67.275,"elev":null},{"type":"A","name":"SAMARQAND AEROPORTI","code":"UZSS","lat":39.70166666666667,"lon":66.9825,"elev":2223},{"type":"P","name":null,"code":"TOLIB","lat":39.76,"lon":65.66833333333334,"elev":null},{"type":"A","name":"BUXORO AEROPORTI","code":"UTSB","lat":39.775277777777774,"lon":64.48222222222222,"elev":751},{"type":"P","name":null,"code":"EKVIT","lat":40.51861111111111,"lon":68.55416666666666,"elev":null},{"type":"P","name":null,"code":"RAVEG","lat":40.44972222222222,"lon":67.13305555555554,"elev":null},{"type":"P","name":null,"code":"BIBED","lat":40.1475,"lon":65.90861111111111,"elev":null},{"type":"A","name":"NAVOIY AEROPRTI","code":"UTSA","lat":40.117222222222225,"lon":65.17111111111112,"elev":1142},{"type":"P","name":null,"code":"NIBTI","lat":39.55972222222222,"lon":66.18527777777778,"elev":null},{"type":"A","name":"QARSHI AEROPORTI","code":"UTSK","lat":38.802499999999995,"lon":65.77305555555556,"elev":1232},{"type":"A","name":"XONABOD AERODROMI","code":"UTSL","lat":38.83388888888889,"lon":65.92194444444445,"elev":1325},{"type":"P","name":null,"code":"OSLEB","lat":39.035,"lon":66.75666666666666,"elev":null},{"type":"P","name":null,"code":"EVROB","lat":40.72222222222222,"lon":66.57722222222222,"elev":null},{"type":"P","name":null,"code":"MAMAL","lat":41.12555555555556,"lon":65.36444444444444,"elev":null},{"type":"A","name":"ZARAFSHON AEROPORTI","code":"UTSN","lat":41.61388888888889,"lon":64.23333333333333,"elev":1396},{"type":"P","name":null,"code":"TUTSU","lat":40.455555555555556,"lon":64.9588888888889,"elev":null},{"type":"P","name":null,"code":"URAVI","lat":41.308055555555555,"lon":64.40333333333334,"elev":null},{"type":"P","name":null,"code":"ODIDI","lat":41.39194444444444,"lon":63.94499999999999,"elev":null},{"type":"A","name":"UCH QUDUQ AEROPORTI","code":"UTSU","lat":42.08305555555556,"lon":63.44916666666666,"elev":416},{"type":"P","name":null,"code":"EKPAK","lat":40.86527777777778,"lon":65.09527777777777,"elev":null},{"type":"P","name":null,"code":"KERIV","lat":41.08027777777778,"lon":63.29527777777778,"elev":null},{"type":"P","name":null,"code":"VASIM","lat":41.26,"lon":61.75,"elev":null},{"type":"A","name":"URGANCH AEROPORTI","code":"UTNU","lat":41.5825,"lon":60.64361111111111,"elev":322},{"type":"P","name":null,"code":"RUMAM","lat":41.70277777777778,"lon":63,"elev":null},{"type":"P","name":null,"code":"BALSO","lat":42.41,"lon":60.26,"elev":null},{"type":"P","name":null,"code":"RATAR","lat":38.02222222222222,"lon":66.76611111111112,"elev":null},{"type":"P","name":null,"code":"RASID","lat":38.22166666666667,"lon":67.66416666666667,"elev":null},{"type":"P","name":null,"code":"PINUD","lat":38.55888888888889,"lon":67.74194444444444,"elev":null},{"type":"P","name":null,"code":"AKMAZ","lat":39.300555555555555,"lon":66.84194444444444,"elev":null},{"type":"P","name":null,"code":"MIHIS","lat":43.28111111111111,"lon":59.25277777777778,"elev":null},{"type":"P","name":null,"code":"MISRA","lat":42.99,"lon":59.39,"elev":null},{"type":"P","name":null,"code":"RENHE","lat":42.71805555555556,"lon":59.04472222222222,"elev":null},{"type":"P","name":null,"code":"EKDUP","lat":42.77055555555555,"lon":58.91222222222222,"elev":null},{"type":"A","name":"SHAHRISABZ AEROPORTI","code":"UTSH","lat":39.06916666666667,"lon":66.75416666666666,"elev":1900},{"type":"P","name":null,"code":"MIKDI","lat":40.493611111111115,"lon":71.89166666666668,"elev":null},{"type":"P","name":null,"code":"NEPNU","lat":40.700833333333335,"lon":71.27944444444444,"elev":null},{"type":"H","name":"130-KILOMETR","code":"130KM","lat":45.00333333333333,"lon":59.36277777777778,"elev":151},{"type":"H","name":"HELIPAD #10","code":"PL10","lat":41.51083333333333,"lon":69.56777777777778,"elev":2254},{"type":"A","name":"KTA58","code":"UTTC2","lat":41.51058694444445,"lon":69.575205,"elev":2270},{"type":"H","name":"CHIMBAYLIK (TUR.POLICE)","code":"CHIMB","lat":41.62446027777778,"lon":69.95315500000001,"elev":2552},{"type":"S","name":"GURLEN","code":"GURLN","lat":41.84722222222222,"lon":60.393055555555556,"elev":7200},{"type":"S","name":"TO'RT KO'L","code":"4KOL","lat":41.55333333333333,"lon":60.99888888888889,"elev":null},{"type":"S","name":"BERUNIY","code":"BRNIY","lat":41.691111111111105,"lon":60.75055555555556,"elev":null},{"type":"S","name":"TUPROQ QAL'A (PITNAK)","code":"TPRQL","lat":41.23388888888889,"lon":61.26916666666666,"elev":null},{"type":"S","name":"XONQA","code":"XONQA","lat":41.474444444444444,"lon":60.7825,"elev":null},{"type":"S","name":"BOG'OT","code":"BAGAT","lat":41.35111111111111,"lon":60.80972222222222,"elev":null},{"type":"S","name":"XIVA","code":"KHIVA","lat":41.38638888888889,"lon":60.35638888888889,"elev":null},{"type":"S","name":"SHOVOT","code":"SHOVT","lat":41.657777777777774,"lon":60.295833333333334,"elev":null},{"type":"S","name":null,"code":"BALKY","lat":39.8525,"lon":67.75166666666667,"elev":null},{"type":"P","name":"ODZEP","code":"ODZEP","lat":40.17305555555555,"lon":68.28944444444444,"elev":null},{"type":"H","name":"72-KM (OQ YURTA BOR JOY)","code":"72KM","lat":44.75160722222222,"lon":59.0058075,"elev":141},{"type":"P","name":"NULEVAYA (POINT)","code":"NULVY","lat":44.153055555555554,"lon":58.856944444444444,"elev":null},{"type":"P","name":"RUDWU","code":"RUDWU","lat":41.183499999999995,"lon":69.53266638888888,"elev":null},{"type":"P","name":"ARPIZ","code":"ARPIZ","lat":39.10305555555556,"lon":67.20694444444445,"elev":null}],"plt":[{"name":"D.ADINAYEV","rank":"M-R","call":"AF 338"},{"name":"N.AKBAROV","rank":"K-N","call":"AF 351"},{"name":"F.SHARIPOV","rank":"P/P-K","call":"AF 311"},{"name":"D.MUXIDINOV","rank":"P/P-K","call":"AF 370"},{"name":"O.NASIMOV","rank":"K-N","call":"-"},{"name":"SH.USARBOYEV","rank":"K-N","call":"AF 350"},{"name":"O.URAZOV","rank":"P/P-K","call":"AF 318"},{"name":"J.YUSUPOV","rank":"KT.L-NT","call":"AF 353"},{"name":"J.MAXMUDOV","rank":"KT.L-NT","call":"AF 354"},{"name":"J.SAMARIDDINOV","rank":"KT.L-NT","call":"AF 386"},{"name":"E.PASHAYEV","rank":"P/P-K","call":"AF 305"},{"name":"B.RAXIMOV","rank":"M-R","call":"AF 348"},{"name":"X.TURAYEV","rank":"M-R","call":"AF 172"},{"name":"F.AXMADILLAYEV","rank":"P/P-K","call":"AF 102"},{"name":"SH.ESHMATOV","rank":"M-R","call":"AF 374"},{"name":"A.TASHMATOV","rank":"M-R","call":"AF 345"},{"name":"A.BURXANOV","rank":"M-R","call":"AF 350"},{"name":"D.NIZAMOV","rank":"P/P-K","call":"AF 306"},{"name":"R.IRGASHEV","rank":"P/P-K","call":"AF 303"},{"name":"F.G'ULOMIDINOV","rank":"P/P-K","call":"AF 323"},{"name":"U.MAMAJONOV","rank":"K-N","call":"AF 334"},{"name":"M.TURSUNOV","rank":"K-N","call":"AF 347"},{"name":"S.ARIPBAYEV","rank":"M-R","call":"AF 344"},{"name":"SH.AVGANOV","rank":"K-N","call":"AF 455"},{"name":"A.AKBAROV","rank":"K-N","call":"AF 345"},{"name":"M.MASHRAPOV","rank":"K-N","call":"AF 349"},{"name":"J.NABIYEV","rank":"K-N","call":null},{"name":"A.XASANOV","rank":"K-N","call":null},{"name":"A.XUDOYQULOV","rank":"K-N","call":null}],"ac":[{"type":"H215","tail":201,"empty":5409,"ffClimb":510,"ffCruise":450,"ffDescent":380,"ffGround":260,"ffGoaround":100,"maxFuel":2200,"emerFuel":200,"crew":240,"maxMass":9000,"payload":4000,"paxMass":2400,"taxiTime":10,"startupTime":5,"shutdownTime":3,"pct":7,"unit":"EURO"},{"type":"H215","tail":202,"empty":5426,"ffClimb":510,"ffCruise":450,"ffDescent":380,"ffGround":260,"ffGoaround":100,"maxFuel":2200,"emerFuel":200,"crew":240,"maxMass":9000,"payload":4000,"paxMass":2400,"taxiTime":10,"startupTime":5,"shutdownTime":3,"pct":7,"unit":"EURO"},{"type":"H215","tail":203,"empty":5537,"ffClimb":510,"ffCruise":450,"ffDescent":380,"ffGround":260,"ffGoaround":100,"maxFuel":2200,"emerFuel":200,"crew":240,"maxMass":9000,"payload":4000,"paxMass":2400,"taxiTime":10,"startupTime":5,"shutdownTime":3,"pct":7,"unit":"EURO"},{"type":"H215","tail":204,"empty":5482,"ffClimb":510,"ffCruise":450,"ffDescent":380,"ffGround":260,"ffGoaround":100,"maxFuel":2200,"emerFuel":200,"crew":240,"maxMass":9000,"payload":4000,"paxMass":2400,"taxiTime":10,"startupTime":5,"shutdownTime":3,"pct":7,"unit":"EURO"},{"type":"H215","tail":205,"empty":5543,"ffClimb":510,"ffCruise":450,"ffDescent":380,"ffGround":260,"ffGoaround":100,"maxFuel":2200,"emerFuel":200,"crew":240,"maxMass":9000,"payload":4000,"paxMass":2400,"taxiTime":10,"startupTime":5,"shutdownTime":3,"pct":7,"unit":"EURO"},{"type":"H215","tail":206,"empty":5545,"ffClimb":510,"ffCruise":450,"ffDescent":380,"ffGround":260,"ffGoaround":100,"maxFuel":2200,"emerFuel":200,"crew":240,"maxMass":9000,"payload":4000,"paxMass":2400,"taxiTime":10,"startupTime":5,"shutdownTime":3,"pct":7,"unit":"EURO"},{"type":"H215","tail":207,"empty":5494,"ffClimb":510,"ffCruise":450,"ffDescent":380,"ffGround":260,"ffGoaround":100,"maxFuel":2200,"emerFuel":200,"crew":240,"maxMass":9000,"payload":4000,"paxMass":2400,"taxiTime":10,"startupTime":5,"shutdownTime":3,"pct":7,"unit":"EURO"},{"type":"H215","tail":208,"empty":5522,"ffClimb":510,"ffCruise":450,"ffDescent":380,"ffGround":260,"ffGoaround":100,"maxFuel":2200,"emerFuel":200,"crew":240,"maxMass":9000,"payload":4000,"paxMass":2400,"taxiTime":10,"startupTime":5,"shutdownTime":3,"pct":7,"unit":"EURO"},{"type":"H215","tail":209,"empty":5493,"ffClimb":510,"ffCruise":450,"ffDescent":380,"ffGround":260,"ffGoaround":100,"maxFuel":2200,"emerFuel":200,"crew":240,"maxMass":9000,"payload":4000,"paxMass":2400,"taxiTime":10,"startupTime":5,"shutdownTime":3,"pct":7,"unit":"EURO"},{"type":"H215","tail":210,"empty":5485,"ffClimb":510,"ffCruise":450,"ffDescent":380,"ffGround":260,"ffGoaround":100,"maxFuel":2200,"emerFuel":200,"crew":240,"maxMass":9000,"payload":4000,"paxMass":2400,"taxiTime":10,"startupTime":5,"shutdownTime":3,"pct":7,"unit":"EURO"},{"type":"H215","tail":211,"empty":5515,"ffClimb":510,"ffCruise":450,"ffDescent":380,"ffGround":260,"ffGoaround":100,"maxFuel":2200,"emerFuel":200,"crew":240,"maxMass":9000,"payload":4000,"paxMass":2400,"taxiTime":10,"startupTime":5,"shutdownTime":3,"pct":7,"unit":"EURO"},{"type":"H215","tail":212,"empty":5566,"ffClimb":510,"ffCruise":450,"ffDescent":380,"ffGround":260,"ffGoaround":100,"maxFuel":2200,"emerFuel":200,"crew":240,"maxMass":9000,"payload":4000,"paxMass":2400,"taxiTime":10,"startupTime":5,"shutdownTime":3,"pct":7,"unit":"EURO"},{"type":"H215","tail":213,"empty":5445,"ffClimb":510,"ffCruise":450,"ffDescent":380,"ffGround":260,"ffGoaround":100,"maxFuel":2200,"emerFuel":200,"crew":240,"maxMass":9000,"payload":4000,"paxMass":2400,"taxiTime":10,"startupTime":5,"shutdownTime":3,"pct":7,"unit":"EURO"},{"type":"H215","tail":214,"empty":5437,"ffClimb":510,"ffCruise":450,"ffDescent":380,"ffGround":260,"ffGoaround":100,"maxFuel":2200,"emerFuel":200,"crew":240,"maxMass":9000,"payload":4000,"paxMass":2400,"taxiTime":10,"startupTime":5,"shutdownTime":3,"pct":7,"unit":"EURO"},{"type":"H215","tail":215,"empty":5430,"ffClimb":510,"ffCruise":450,"ffDescent":380,"ffGround":260,"ffGoaround":100,"maxFuel":2200,"emerFuel":200,"crew":240,"maxMass":9000,"payload":4000,"paxMass":2400,"taxiTime":10,"startupTime":5,"shutdownTime":3,"pct":7,"unit":"EURO"},{"type":"H215","tail":216,"empty":5482,"ffClimb":510,"ffCruise":450,"ffDescent":380,"ffGround":260,"ffGoaround":100,"maxFuel":2200,"emerFuel":200,"crew":240,"maxMass":9000,"payload":4000,"paxMass":2400,"taxiTime":10,"startupTime":5,"shutdownTime":3,"pct":7,"unit":"EURO"},{"type":"H125","tail":101,"empty":1313,"ffClimb":150,"ffCruise":135,"ffDescent":120,"ffGround":80,"ffGoaround":18,"maxFuel":427,"emerFuel":48,"crew":160,"maxMass":2250,"payload":300,"paxMass":310,"taxiTime":5,"startupTime":5,"shutdownTime":2,"pct":5,"unit":"RUS"},{"type":"H125","tail":102,"empty":1314,"ffClimb":150,"ffCruise":135,"ffDescent":120,"ffGround":80,"ffGoaround":18,"maxFuel":427,"emerFuel":48,"crew":160,"maxMass":2250,"payload":300,"paxMass":310,"taxiTime":5,"startupTime":5,"shutdownTime":2,"pct":5,"unit":"RUS"},{"type":"H125","tail":103,"empty":1405,"ffClimb":150,"ffCruise":135,"ffDescent":120,"ffGround":80,"ffGoaround":18,"maxFuel":427,"emerFuel":48,"crew":160,"maxMass":2250,"payload":300,"paxMass":310,"taxiTime":5,"startupTime":5,"shutdownTime":2,"pct":5,"unit":"RUS"},{"type":"H125","tail":104,"empty":1408,"ffClimb":150,"ffCruise":135,"ffDescent":120,"ffGround":80,"ffGoaround":18,"maxFuel":427,"emerFuel":48,"crew":160,"maxMass":2250,"payload":300,"paxMass":310,"taxiTime":5,"startupTime":5,"shutdownTime":2,"pct":5,"unit":"RUS"},{"type":"H125","tail":105,"empty":1404,"ffClimb":150,"ffCruise":135,"ffDescent":120,"ffGround":80,"ffGoaround":18,"maxFuel":427,"emerFuel":48,"crew":160,"maxMass":2250,"payload":300,"paxMass":310,"taxiTime":5,"startupTime":5,"shutdownTime":2,"pct":5,"unit":"RUS"},{"type":"H125","tail":106,"empty":1407,"ffClimb":150,"ffCruise":135,"ffDescent":120,"ffGround":80,"ffGoaround":18,"maxFuel":427,"emerFuel":48,"crew":160,"maxMass":2250,"payload":300,"paxMass":310,"taxiTime":5,"startupTime":5,"shutdownTime":2,"pct":5,"unit":"RUS"},{"type":"H125","tail":107,"empty":1318,"ffClimb":150,"ffCruise":135,"ffDescent":120,"ffGround":80,"ffGoaround":18,"maxFuel":427,"emerFuel":48,"crew":160,"maxMass":2250,"payload":300,"paxMass":310,"taxiTime":5,"startupTime":5,"shutdownTime":2,"pct":5,"unit":"EURO"},{"type":"H125","tail":108,"empty":1396,"ffClimb":150,"ffCruise":135,"ffDescent":120,"ffGround":80,"ffGoaround":18,"maxFuel":427,"emerFuel":48,"crew":160,"maxMass":2250,"payload":300,"paxMass":310,"taxiTime":5,"startupTime":5,"shutdownTime":2,"pct":5,"unit":"EURO"},{"type":"H125","tail":109,"empty":1393,"ffClimb":150,"ffCruise":135,"ffDescent":120,"ffGround":80,"ffGoaround":18,"maxFuel":427,"emerFuel":48,"crew":160,"maxMass":2250,"payload":300,"paxMass":310,"taxiTime":5,"startupTime":5,"shutdownTime":2,"pct":5,"unit":"EURO"},{"type":"H125","tail":110,"empty":1397,"ffClimb":150,"ffCruise":135,"ffDescent":120,"ffGround":80,"ffGoaround":18,"maxFuel":427,"emerFuel":48,"crew":160,"maxMass":2250,"payload":300,"paxMass":310,"taxiTime":5,"startupTime":5,"shutdownTime":2,"pct":5,"unit":"EURO"},{"type":"H125","tail":111,"empty":1405,"ffClimb":150,"ffCruise":135,"ffDescent":120,"ffGround":80,"ffGoaround":18,"maxFuel":427,"emerFuel":48,"crew":160,"maxMass":2250,"payload":300,"paxMass":310,"taxiTime":5,"startupTime":5,"shutdownTime":2,"pct":5,"unit":"EURO"},{"type":"H130","tail":3,"empty":5409,"ffClimb":150,"ffCruise":135,"ffDescent":120,"ffGround":80,"ffGoaround":18,"maxFuel":427,"emerFuel":48,"crew":160,"maxMass":2500,"payload":300,"paxMass":310,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"EURO"},{"type":"Mi-35","tail":301,"empty":null,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1660,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-35","tail":302,"empty":null,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1660,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-35","tail":303,"empty":null,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1660,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-35","tail":304,"empty":8210,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1660,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-35","tail":305,"empty":null,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1660,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-35","tail":306,"empty":8210,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1660,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-35","tail":307,"empty":null,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1660,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-35","tail":308,"empty":null,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1660,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-35","tail":309,"empty":null,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1660,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-35","tail":310,"empty":null,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1660,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-35","tail":311,"empty":null,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1660,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-35","tail":312,"empty":null,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1660,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-24","tail":92,"empty":8620,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1760,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-24","tail":99,"empty":8639,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1760,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-24","tail":61,"empty":8652,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1760,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-24","tail":73,"empty":8663,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1760,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-24","tail":80,"empty":8650,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1760,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-24","tail":81,"empty":8608,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1760,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-24","tail":82,"empty":8650,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1760,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-24","tail":88,"empty":8621,"ffClimb":690,"ffCruise":670,"ffDescent":650,"ffGround":350,"ffGoaround":138,"maxFuel":1760,"emerFuel":240,"crew":291,"maxMass":11500,"payload":1500,"paxMass":0,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"},{"type":"Mi-8","tail":32,"empty":7051,"ffClimb":null,"ffCruise":null,"ffDescent":null,"ffGround":null,"ffGoaround":null,"maxFuel":null,"emerFuel":null,"crew":null,"maxMass":null,"payload":null,"paxMass":null,"taxiTime":5,"startupTime":5,"shutdownTime":3,"pct":5,"unit":"RUS"}]}</script>
+
+<script>
+/* ============================================================
+   NAV PLAN — vanilla JS app (no external deps, offline-first)
+   ============================================================ */
+const REF = JSON.parse(document.getElementById('refdata').textContent);
+
+/* ---------- custom (user-added) reference data, persisted locally ---------- */
+const CUSTOM_KEY = 'custom_refdata';
+function loadCustomRef(){
+  try{
+    const raw = window.localStorage.getItem(CUSTOM_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return { wpt: [], plt: [], ac: [] };
+}
+function saveCustomRef(){
+  try{ window.localStorage.setItem(CUSTOM_KEY, JSON.stringify(CUSTOM)); }catch(e){}
+}
+let CUSTOM = loadCustomRef();
+function allWpt(){ return REF.wpt.concat(CUSTOM.wpt); }
+function allPlt(){ return REF.plt.concat(CUSTOM.plt); }
+function allAc(){ return REF.ac.concat(CUSTOM.ac); }
+
+
+/* ---------- storage ----------
+   Uses plain browser localStorage so plans persist on iPad Safari /
+   home-screen PWA without any special host APIs. Falls back to an
+   in-memory map if localStorage is unavailable (e.g. private mode). */
+const memoryFallback = {};
+let storageBackend = 'local';
+try{
+  const testKey = '__navplan_test__';
+  window.localStorage.setItem(testKey, '1');
+  window.localStorage.removeItem(testKey);
+}catch(e){
+  storageBackend = 'memory';
+}
+
+const StorageAPI = {
+  async get(key){
+    try{
+      if(storageBackend==='local'){
+        const v = window.localStorage.getItem(key);
+        return v!=null ? JSON.parse(v) : null;
+      }
+      return memoryFallback.hasOwnProperty(key) ? JSON.parse(memoryFallback[key]) : null;
+    }catch(e){ return null; }
+  },
+  async set(key, val){
+    try{
+      const s = JSON.stringify(val);
+      if(storageBackend==='local'){ window.localStorage.setItem(key, s); }
+      else { memoryFallback[key] = s; }
+    }catch(e){}
+  },
+  async list(prefix){
+    try{
+      if(storageBackend==='local'){
+        const keys = [];
+        for(let i=0;i<window.localStorage.length;i++){
+          const k = window.localStorage.key(i);
+          if(k && k.startsWith(prefix)) keys.push(k);
+        }
+        return keys;
+      }
+      return Object.keys(memoryFallback).filter(k=>k.startsWith(prefix));
+    }catch(e){ return []; }
+  },
+  async remove(key){
+    try{
+      if(storageBackend==='local'){ window.localStorage.removeItem(key); }
+      else { delete memoryFallback[key]; }
+    }catch(e){}
+  }
+};
+
+/* ---------- geo / calculation engine ---------- */
+function toRad(d){ return d * Math.PI/180; }
+function toDeg(r){ return r * 180/Math.PI; }
+
+function distanceNM(lat1, lon1, lat2, lon2){
+  const cosv = Math.cos(toRad(90-lat1)) * Math.cos(toRad(90-lat2)) +
+    Math.sin(toRad(90-lat1)) * Math.sin(toRad(90-lat2)) * Math.cos(toRad(lon1-lon2));
+  const clamped = Math.max(-1, Math.min(1, cosv));
+  return 6371 * Math.acos(clamped) * 0.53996;
+}
+
+function bearingTrue(lat1, lon1, lat2, lon2){
+  const phi1 = toRad(lat1), phi2 = toRad(lat2), dLon = toRad(lon2-lon1);
+  const y = Math.sin(dLon) * Math.cos(phi2);
+  const x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(dLon);
+  const brng = toDeg(Math.atan2(y, x));
+  return (brng + 360) % 360;
+}
+function bearingMag(lat1, lon1, lat2, lon2, magVarDeg){
+  const t = bearingTrue(lat1, lon1, lat2, lon2);
+  return ((t - (magVarDeg||0)) % 360 + 360) % 360;
+}
+
+const SPECIAL = new Set(['START','TAXI','HOVER','END']);
+
+function fmtHM(totalMinutes){
+  if(totalMinutes == null || isNaN(totalMinutes)) return '--:--';
+  const sign = totalMinutes < 0 ? '-' : '';
+  const abs = Math.round(Math.abs(totalMinutes));
+  const h = Math.floor(abs/60);
+  const m = abs - h*60;
+  return sign+String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+}
+function fmtTimeOfDay(depMinutes, elapsedMinutes){
+  let t = (depMinutes + elapsedMinutes) % 1440;
+  if(t<0) t += 1440;
+  const h = Math.floor(t/60), m = Math.round(t%60);
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+}
+function ddToDM(dd, isLat){
+  if(dd==null) return '';
+  const sign = dd >= 0 ? (isLat?'N':'E') : (isLat?'S':'W');
+  const abs = Math.abs(dd);
+  const d = Math.floor(abs);
+  const mFull = ((abs-d)*60).toFixed(2);
+  return sign+' '+d+'°'+mFull+"'";
+}
+function esc(s){
+  if(s==null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function computeRoute(routePoints, aircraft, params){
+  const n = routePoints.length;
+  if(n === 0 || !aircraft) return { legs: [], totals:null };
+
+  const ffClimb = aircraft.ffClimb, ffCruise = aircraft.ffCruise, ffDescent = aircraft.ffDescent, ffGround = aircraft.ffGround;
+  const koef = 1 + ((aircraft.pct||0)/100); // reserve/correction coefficient (e.g. 1.07 for 7%)
+  const gs = params.gs || 120; // ground speed in knots, set by the pilot (not tied to fuel-flow figures)
+
+  let mass = params.startMass;
+  let fuelRem = params.fuelOnBoard;
+
+  const dtkList = new Array(n).fill(null);
+  const distList = new Array(n).fill(null);
+  let lastNormalIdx = -1;
+  for(let i=0;i<n;i++){
+    const p1 = routePoints[i];
+    if(p1.kind==='NORMAL' && p1.lat!=null){
+      if(lastNormalIdx>=0){
+        const p0 = routePoints[lastNormalIdx];
+        const d = distanceNM(p0.lat,p0.lon,p1.lat,p1.lon);
+        distList[i] = d;
+        dtkList[i] = bearingMag(p0.lat,p0.lon,p1.lat,p1.lon, params.magVar||0);
+      }
+      lastNormalIdx = i;
+    }
+  }
+
+  // Detect a LEADING block of ground ops (START/TAXI/HOVER) before the first real
+  // route point. Their clock time counts BACKWARDS from departure (Ч), e.g.
+  // TAXI = Ч-10, START = Ч-15. Any ground ops appearing later in the route (after
+  // the aircraft has already departed once) instead add time FORWARDS from the
+  // point where they occur.
+  let leadingEnd = 0;
+  while(leadingEnd < n && SPECIAL.has(routePoints[leadingEnd].kind)){
+    leadingEnd++;
+  }
+  const hasLeadingBlock = leadingEnd > 0 && leadingEnd < n;
+
+  const eteList = new Array(n).fill(0); // signed minutes offset from departure point, accumulated later
+  const fuelList = new Array(n).fill(0);
+  const arrowList = new Array(n).fill('');
+  const phaseList = new Array(n).fill(null);
+
+  // --- leading ground-ops block: walk BACKWARDS from the first real point ---
+  if(hasLeadingBlock){
+    let backOffset = 0; // minutes before departure, grows as we walk backwards
+    for(let i=leadingEnd-1; i>=0; i--){
+      const p = routePoints[i];
+      let dur = 0, fb = 0, arrow = '';
+      if(p.kind==='TAXI'){ dur = aircraft.taxiTime; fb = ffGround/60*dur*koef; arrow='↔'; }
+      else if(p.kind==='START'){ dur = aircraft.startupTime; fb = ffGround/60*dur*koef; arrow='START'; }
+      else if(p.kind==='HOVER'){ dur = p.hoverMin||0; fb = ffGround/60*dur*koef; arrow='―'; }
+      backOffset += dur;
+      eteList[i] = -backOffset;
+      fuelList[i] = fb;
+      arrowList[i] = arrow;
+      phaseList[i] = 'ground';
+    }
+  } else {
+    // no real point follows (route is only ground ops) — fall back to forward counting from 0
+    let fwd = 0;
+    for(let i=0;i<leadingEnd;i++){
+      const p = routePoints[i];
+      let dur = 0, fb = 0, arrow = '';
+      if(p.kind==='TAXI'){ dur = aircraft.taxiTime; fb = ffGround/60*dur*koef; arrow='↔'; }
+      else if(p.kind==='START'){ dur = aircraft.startupTime; fb = ffGround/60*dur*koef; arrow='START'; }
+      else if(p.kind==='HOVER'){ dur = p.hoverMin||0; fb = ffGround/60*dur*koef; arrow='―'; }
+      fwd += dur;
+      eteList[i] = fwd;
+      fuelList[i] = fb;
+      arrowList[i] = arrow;
+      phaseList[i] = 'ground';
+    }
+  }
+
+  // --- everything from leadingEnd onwards: normal forward accumulation ---
+  let fwdElapsed = 0; // minutes after departure (Ч), i.e. at the first real point this is 0
+  for(let i=leadingEnd; i<n; i++){
+    const p = routePoints[i];
+    const prev = i>0 ? routePoints[i-1] : null;
+    let dist = distList[i];
+    let dtk = dtkList[i];
+    let dur = 0, fb = 0, arrow = '', phase = null;
+
+    if(i === leadingEnd){
+      // first real point of the route = departure instant itself
+      dur = 0; arrow = hasLeadingBlock ? '' : (p.kind==='START' ? 'START' : '');
+      if(!hasLeadingBlock && p.kind==='START'){ dur = aircraft.startupTime; fb = ffGround/60*dur*koef; phase='ground'; }
+    } else if(p.kind === 'TAXI'){ arrow='↔'; phase='ground'; dur = aircraft.taxiTime; fb = ffGround/60*dur*koef; }
+    else if(p.kind === 'HOVER'){ arrow='―'; phase='ground'; dur = p.hoverMin||0; fb = ffGround/60*dur*koef; }
+    else if(p.kind === 'START'){ arrow='RUN'; phase='ground'; dur = aircraft.startupTime; fb = ffGround/60*dur*koef; }
+    else if(p.kind === 'END'){ arrow='OFF'; phase='ground'; dur = aircraft.shutdownTime; fb = ffGround/60*dur*koef; }
+    else if(prev && (prev.kind === 'START' || prev.kind==='TAXI' || prev.kind==='HOVER')){
+      arrow = '↗'; phase='climb';
+      if(dist!=null){ dur = dist/gs*60; fb = ffClimb/60*dur*koef; }
+    } else if(dist!=null && dtk!=null){
+      phase = p.phaseOverride || 'cruise';
+      if(phase==='climb'){ arrow='↗'; dur = dist/gs*60; fb = ffClimb/60*dur*koef; }
+      else if(phase==='descent'){ arrow='↘'; dur = dist/gs*60; fb = ffDescent/60*dur*koef; }
+      else if(phase==='goaround'){ arrow='↻'; dur = dist/gs*60; fb = (aircraft.ffGoaround||0)/60*dur*koef; }
+      else { arrow='→'; dur = dist/gs*60; fb = ffCruise/60*dur*koef; }
+    }
+
+    fwdElapsed += dur;
+    eteList[i] = fwdElapsed;
+    fuelList[i] = fb;
+    arrowList[i] = arrow;
+    phaseList[i] = phase;
+  }
+
+  const legs = [];
+  for(let i=0;i<n;i++){
+    const p = routePoints[i];
+    let dist = distList[i];
+    let dtk = dtkList[i];
+    let elapsed = eteList[i];
+    let fuelBurn = fuelList[i];
+    let arrow = arrowList[i];
+    let phase = phaseList[i];
+
+    fuelRem -= fuelBurn;
+    mass -= fuelBurn;
+
+    legs.push(Object.assign({}, p, {
+      dist, dtk, ete: elapsed, fuelBurn, arrow, phase,
+      elapsedMin: elapsed, fuelRem, mass,
+      ata: fmtTimeOfDay(params.depTimeMinutes, elapsed),
+    }));
+  }
+
+  const totalDist = distList.reduce((s,d)=> s+(d||0), 0);
+  const totalFuel = params.fuelOnBoard - fuelRem;
+  const totalEte = n>0 ? eteList[n-1] - Math.min(0, eteList[0]) : 0;
+  const flightEte = n>0 ? eteList[n-1] : 0; // time from departure (Ч) to last point, can be used for ETE-from-departure
+
+  return {
+    legs,
+    totals:{
+      totalDist, totalEte: flightEte, totalFuel,
+      fuelRem, massEnd: mass,
+      reserveOk: fuelRem >= (aircraft.emerFuel||0),
+    }
+  };
+}
+
+/* ---------- id helper ---------- */
+let idCounter = 1;
+function newId(){ return 'p'+(idCounter++)+'_'+Date.now().toString(36); }
+function defaultRoutePoint(kind){
+  return { id:newId(), kind, code:'', name:'', lat:null, lon:null, elev:null, hoverMin: kind==='HOVER'?5:0, phaseOverride:null, alt:null };
+}
+function emptyPlan(){
+  return {
+    id: newId(), title:'Новый план', date: new Date().toISOString().slice(0,10),
+    pilot:'', pilotRank:'', copilot:'', copilotRank:'', callSign:'',
+    acType:'', tail:'', depTime:'06:45', fuel:2200, load:0, magVar:5, gs:120,
+    route:[ defaultRoutePoint('START'), defaultRoutePoint('TAXI') ],
+    updatedAt: Date.now(),
+  };
+}
+
+/* ============================================================
+   APP STATE + ROUTER
+   ============================================================ */
+const App = {
+  view: 'plans',
+  plan: null,
+  plans: [],
+  toastTimer: null,
+  saveTimer: null,
+};
+
+function showToast(msg){
+  let el = document.getElementById('toast');
+  if(el) el.remove();
+  el = document.createElement('div');
+  el.id = 'toast';
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  if(App.toastTimer) clearTimeout(App.toastTimer);
+  App.toastTimer = setTimeout(()=>{ el.remove(); }, 2200);
+}
+
+function setView(view){
+  if((view==='nav' || view==='print') && !App.plan) return;
+  App.view = view;
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.classList.toggle('active', t.dataset.view===view);
+  });
+  render();
+}
+
+function refreshTabsEnabled(){
+  document.querySelectorAll('.tab[data-view="nav"], .tab[data-view="print"]').forEach(t=>{
+    t.classList.toggle('disabled', !App.plan);
+  });
+}
+
+function schedulePlanSave(){
+  if(App.saveTimer) clearTimeout(App.saveTimer);
+  App.saveTimer = setTimeout(()=>{
+    if(App.plan){
+      App.plan.updatedAt = Date.now();
+      StorageAPI.set('plan:'+App.plan.id, App.plan);
+    }
+  }, 400);
+}
+
+function updatePlan(patch){
+  App.plan = Object.assign({}, App.plan, patch);
+  schedulePlanSave();
+  renderNav();
+}
+
+/* ============================================================
+   RENDER: ROOT DISPATCH
+   ============================================================ */
+function render(){
+  refreshTabsEnabled();
+  const main = document.getElementById('main');
+  if(App.view==='plans') return renderPlans();
+  if(App.view==='nav') return renderNav();
+  if(App.view==='print') return renderPrint();
+  if(App.view==='db') return renderDb();
+  main.innerHTML = '';
+}
+
+/* ============================================================
+   PLANS LIST
+   ============================================================ */
+async function loadPlans(){
+  const keys = await StorageAPI.list('plan:');
+  const items = [];
+  for(const k of keys){
+    const v = await StorageAPI.get(k);
+    if(v) items.push(v);
+  }
+  items.sort((a,b)=> (b.updatedAt||0)-(a.updatedAt||0));
+  App.plans = items;
+}
+
+async function renderPlans(){
+  const main = document.getElementById('main');
+  main.innerHTML = '<div class="panel"><div class="panel-title">Сохранённые планы</div><div class="hint">Загрузка...</div></div>';
+  await loadPlans();
+
+  let html = '<div class="panel">';
+  html += '<div class="panel-title">Сохранённые планы</div>';
+  html += '<div class="btn-row" style="margin-bottom:14px;"><button class="btn btn-primary" id="btnNewPlan">+ Новый план полёта</button></div>';
+
+  if(App.plans.length===0){
+    html += '<div class="empty-state"><div class="big">📋</div>Пока нет сохранённых планов.</div>';
+  } else {
+    html += '<div class="plan-list">';
+    for(const p of App.plans){
+      const title = esc(p.callSign || p.title);
+      const acInfo = p.acType ? (' · '+esc(p.acType)+' '+esc(p.tail)) : '';
+      const sub = esc(p.date)+' · '+p.route.length+' точек · '+new Date(p.updatedAt).toLocaleString('ru-RU');
+      html += '<div class="plan-card" data-id="'+esc(p.id)+'">';
+      html += '<div class="pc-main"><div class="pc-title">'+title+acInfo+'</div><div class="pc-sub">'+sub+'</div></div>';
+      html += '<button class="btn btn-sm btn-danger" data-action="delete" data-id="'+esc(p.id)+'">Удалить</button>';
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  main.innerHTML = html;
+
+  document.getElementById('btnNewPlan').onclick = async ()=>{
+    const p = emptyPlan();
+    await StorageAPI.set('plan:'+p.id, p);
+    App.plan = p;
+    setView('nav');
+  };
+  main.querySelectorAll('.plan-card').forEach(card=>{
+    card.addEventListener('click', async (e)=>{
+      if(e.target.dataset.action==='delete') return;
+      const id = card.dataset.id;
+      const p = App.plans.find(pl=>pl.id===id);
+      if(p){ App.plan = p; setView('nav'); }
+    });
+  });
+  main.querySelectorAll('[data-action="delete"]').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      await StorageAPI.remove('plan:'+id);
+      showToast('План удалён');
+      renderPlans();
+    });
+  });
+}
+
+/* ============================================================
+   NAV TAB — route builder
+   ============================================================ */
+function getAircraft(plan){
+  return allAc().find(a=>a.type===plan.acType && String(a.tail)===String(plan.tail)) || null;
+}
+function parseTimeToMinutes(t){
+  if(!t) return 0;
+  const parts = t.split(':').map(Number);
+  return (parts[0]||0)*60+(parts[1]||0);
+}
+
+function renderNav(){
+  const main = document.getElementById('main');
+  if(!App.plan) return;
+  const plan = App.plan;
+  const aircraft = getAircraft(plan);
+  const acTypes = [...new Set(allAc().map(a=>a.type))];
+  const acByType = allAc().filter(a=>a.type===plan.acType);
+
+  const result = computeRoute(plan.route, aircraft, {
+    startMass: (aircraft? aircraft.empty:0) + (plan.load||0) + (plan.fuel||0),
+    fuelOnBoard: plan.fuel||0,
+    depTimeMinutes: parseTimeToMinutes(plan.depTime),
+    magVar: plan.magVar||0,
+    gs: plan.gs||120,
+  });
+  const totals = result.totals;
+
+  let html = '';
+
+  // --- crew/aircraft panel ---
+  html += '<div class="panel">';
+  html += '<div class="panel-title">Экипаж и борт</div>';
+  html += '<div class="grid g4">';
+  html += field_autocomplete('pilot', 'КВС / PILOT', plan.pilot, 'ФИО...');
+  html += field_autocomplete('copilot', '2-Й ПИЛОТ', plan.copilot, 'ФИО...');
+  html += '<div class="field"><label>CALL SIGN</label><input id="f_callSign" value="'+esc(plan.callSign||'')+'"/></div>';
+  html += '<div class="field"><label>ДАТА</label><input id="f_date" type="date" value="'+esc(plan.date||'')+'"/></div>';
+  html += '</div>';
+
+  html += '<div class="grid g4" style="margin-top:10px;">';
+  html += '<div class="field"><label>ТИП ВС</label><select id="f_acType"><option value="">—</option>'+
+    acTypes.map(t=>'<option value="'+esc(t)+'"'+(plan.acType===t?' selected':'')+'>'+esc(t)+'</option>').join('')+'</select></div>';
+  html += '<div class="field"><label>БОРТ №</label><select id="f_tail"><option value="">—</option>'+
+    acByType.map(a=>'<option value="'+esc(a.tail)+'"'+(String(plan.tail)===String(a.tail)?' selected':'')+'>'+esc(a.tail)+'</option>').join('')+'</select></div>';
+  html += '<div class="field"><label>ВРЕМЯ ВЫЛЕТА</label><input id="f_depTime" type="time" value="'+esc(plan.depTime||'')+'"/></div>';
+  html += '<div class="field"><label>ТОПЛИВО НА БОРТУ (кг)</label><input id="f_fuel" type="number" value="'+esc(plan.fuel||'')+'"/></div>';
+  html += '</div>';
+
+  html += '<div class="grid g4" style="margin-top:10px;">';
+  html += '<div class="field"><label>ГРУЗ (кг)</label><input id="f_load" type="number" value="'+esc(plan.load||0)+'"/></div>';
+  html += '<div class="field"><label>ПУСТОЙ ВЕС</label><div class="readout">'+(aircraft?aircraft.empty+' кг':'—')+'</div></div>';
+  html += '<div class="field"><label>MAX.FUEL</label><div class="readout">'+(aircraft?aircraft.maxFuel+' кг':'—')+'</div></div>';
+  html += '<div class="field"><label>EMER.FUEL (резерв)</label><div class="readout">'+(aircraft?aircraft.emerFuel+' кг':'—')+'</div></div>';
+  html += '</div>';
+
+  html += '<div class="grid g5" style="margin-top:10px;">';
+  html += '<div class="field"><label>МАГН. СКЛОНЕНИЕ (°)</label><input id="f_magVar" type="number" step="0.1" value="'+esc(plan.magVar!=null?plan.magVar:5)+'"/></div>';
+  html += '<div class="field"><label>ПУТЕВАЯ СКОРОСТЬ GS (УЗ)</label><input id="f_gs" type="number" step="1" value="'+esc(plan.gs!=null?plan.gs:120)+'"/></div>';
+  html += '<div class="field"><label>FUEL FLOW (НАБОР/ГП/СНИЖ/ЗЕМЛЯ)</label><div class="readout">'+(aircraft?(aircraft.ffClimb+'/'+aircraft.ffCruise+'/'+aircraft.ffDescent+'/'+aircraft.ffGround+' кг/ч'):'—')+'</div></div>';
+  html += '<div class="field"><label>FF GO-AROUND</label><div class="readout">'+(aircraft?(aircraft.ffGoaround+' кг/ч'):'—')+'</div></div>';
+  html += '<div class="field"><label>КОЭФ. ЗАПАСА</label><div class="readout">'+(aircraft?('+'+(aircraft.pct||0)+'%'):'—')+'</div></div>';
+  html += '</div>';
+  html += '</div>';
+
+  // --- route panel ---
+  html += '<div class="panel">';
+  html += '<div class="panel-title">Маршрут</div>';
+  html += '<div class="btn-row" style="margin-bottom:10px;">';
+  html += '<button class="btn" data-add="START">+ START</button>';
+  html += '<button class="btn" data-add="TAXI">+ TAXI</button>';
+  html += '<button class="btn btn-primary" data-add="NORMAL">+ ТОЧКА</button>';
+  html += '<button class="btn" data-add="HOVER">+ HOVER</button>';
+  html += '<button class="btn" data-add="END">+ END</button>';
+  html += '</div>';
+
+  if(plan.route.length===0){
+    html += '<div class="empty-state"><div class="big">🧭</div>Маршрут пуст. Добавьте точки маршрута выше.</div>';
+  } else {
+    html += '<div class="table-wrap"><table class="route-table"><thead><tr>'+
+      '<th>#</th><th>тип</th><th>точка</th><th>название</th><th>фаза/hover</th><th>ALT М</th>'+
+      '<th>DIST NM</th><th>DTK</th><th></th><th>ETE</th><th>ATA</th>'+
+      '<th>FUEL</th><th>FUEL REM</th><th>MASS</th><th></th>'+
+      '</tr></thead><tbody>';
+    plan.route.forEach((p, idx)=>{
+      const prevPoint = idx>0 ? plan.route[idx-1] : null;
+      html += renderRouteRow(p, idx, result.legs[idx], prevPoint);
+    });
+    html += '</tbody></table></div>';
+  }
+
+  if(totals){
+    html += '<div class="summary-strip">';
+    html += summaryCell(totals.totalDist.toFixed(1), 'DISTANCE NM');
+    html += summaryCell(fmtHM(totals.totalEte), 'ETE TOTAL');
+    html += summaryCell(Math.round(totals.totalFuel), 'FUEL BURN');
+    html += summaryCell(Math.round(totals.fuelRem), 'FUEL REMAIN', totals.fuelRem<0);
+    html += summaryCell(Math.round(totals.massEnd), 'END MASS KG');
+    html += summaryCell(totals.reserveOk?'OK':'НИЗКО', 'RESERVE', !totals.reserveOk);
+    html += '</div>';
+  }
+  html += '<div class="hint">Курс DTK — истинный (great-circle), скорректированный на магнитное склонение (поле выше). Фазу набор/маршрут/снижение можно переопределить вручную в колонке «фаза».</div>';
+  html += '</div>';
+
+  main.innerHTML = html;
+  wireNavEvents();
+}
+
+function summaryCell(val, label, warn){
+  return '<div class="summary-cell"><div class="v'+(warn?' warn':'')+'">'+esc(val)+'</div><div class="l">'+esc(label)+'</div></div>';
+}
+
+function field_autocomplete(key, label, value, placeholder){
+  return '<div class="field"><label>'+esc(label)+'</label>'+
+    '<div class="autocomplete" data-ac="'+key+'">'+
+    '<input data-ac-input="'+key+'" value="'+esc(value||'')+'" placeholder="'+esc(placeholder||'')+'" autocomplete="off"/>'+
+    '<div class="ac-list" data-ac-list="'+key+'" style="display:none;"></div>'+
+    '</div></div>';
+}
+
+function renderRouteRow(point, index, leg, prevPoint){
+  const isSpecial = SPECIAL.has(point.kind);
+  let html = '<tr class="point-row" data-row="'+index+'">';
+  html += '<td class="center num-g">'+(index+1)+'</td>';
+  html += '<td><select data-field="kind" data-idx="'+index+'">'+
+    ['NORMAL','START','TAXI','HOVER','END'].map(k=>'<option value="'+k+'"'+(point.kind===k?' selected':'')+'>'+(k==='NORMAL'?'WPT':k)+'</option>').join('')+
+    '</select></td>';
+
+  if(isSpecial){
+    html += '<td><span class="text-dim">'+point.kind+'</span></td>';
+    html += '<td>—</td>';
+  } else {
+    html += '<td style="min-width:160px;"><div class="autocomplete" data-wac="'+index+'">'+
+      '<input data-wac-input="'+index+'" value="'+esc(point.code||'')+'" placeholder="код точки..." autocomplete="off"/>'+
+      '<div class="ac-list" data-wac-list="'+index+'" style="display:none;"></div>'+
+      '</div></td>';
+    html += '<td style="min-width:120px;"><span class="text-dim" style="font-size:11px;">'+esc(point.name||'—')+'</span></td>';
+  }
+
+  if(point.kind==='HOVER'){
+    html += '<td><input type="number" style="width:60px;" data-field="hoverMin" data-idx="'+index+'" value="'+esc(point.hoverMin)+'"/></td>';
+  } else if(!isSpecial && index>0){
+    const po = point.phaseOverride||'cruise';
+    html += '<td><select data-field="phaseOverride" data-idx="'+index+'">'+
+      ['climb','cruise','descent','goaround'].map(ph=>'<option value="'+ph+'"'+(po===ph?' selected':'')+'>'+
+        (ph==='climb'?'НАБОР':ph==='descent'?'СНИЖ':ph==='goaround'?'УХОД НА 2-Й':'ГП')+'</option>').join('')+
+      '</select></td>';
+  } else {
+    html += '<td><span class="text-dim">—</span></td>';
+  }
+
+  if(isSpecial){
+    html += '<td><span class="text-dim">—</span></td>';
+  } else {
+    html += '<td><input type="number" style="width:70px;" data-field="alt" data-idx="'+index+'" value="'+(point.alt!=null?esc(point.alt):'')+'" placeholder="'+(point.elev!=null?esc(point.elev):'—')+'"/></td>';
+  }
+
+  html += '<td class="num center">'+(leg && leg.dist!=null ? leg.dist.toFixed(1) : '—')+'</td>';
+  html += '<td class="num center">'+(leg && leg.dtk!=null ? Math.round(leg.dtk)+'°' : '—')+'</td>';
+  let arrowLabel = leg ? leg.arrow : '';
+  if(leg && (leg.phase==='climb' || leg.phase==='descent') && prevPoint){
+    const fromAlt = prevPoint.alt!=null ? prevPoint.alt : (prevPoint.elev!=null?prevPoint.elev:null);
+    const toAlt = point.alt!=null ? point.alt : (point.elev!=null?point.elev:null);
+    if(fromAlt!=null && toAlt!=null){
+      arrowLabel = '<span class="arrow">'+leg.arrow+'</span><br><span style="font-size:9px;color:var(--text-dim);">'+fromAlt+'→'+toAlt+'</span>';
+    } else {
+      arrowLabel = '<span class="arrow">'+leg.arrow+'</span>';
+    }
+  } else if(leg){
+    arrowLabel = '<span class="arrow">'+leg.arrow+'</span>';
+  }
+  html += '<td class="center">'+arrowLabel+'</td>';
+  html += '<td class="num center">'+(leg ? fmtHM(leg.ete) : '—')+'</td>';
+  html += '<td class="num-g center">'+(leg ? leg.ata : '—')+'</td>';
+  html += '<td class="num center">'+(leg ? Math.round(leg.fuelBurn) : '—')+'</td>';
+  html += '<td class="num center'+(leg && leg.fuelRem<0 ? ' num-r':'')+'">'+(leg ? Math.round(leg.fuelRem) : '—')+'</td>';
+  html += '<td class="num center">'+(leg ? Math.round(leg.mass) : '—')+'</td>';
+  html += '<td class="center"><button class="rm-btn" data-remove="'+index+'">✕</button></td>';
+  html += '</tr>';
+  return html;
+}
+
+function genericAutocomplete(container, inputEl, listEl, options, getLabel, getSub, onSelect){
+  function renderList(query){
+    const ql = (query||'').toLowerCase();
+    const filtered = !ql ? options.slice(0,30) :
+      options.filter(o=> String(getLabel(o)).toLowerCase().includes(ql) || String(getSub(o)||'').toLowerCase().includes(ql)).slice(0,30);
+    if(filtered.length===0){ listEl.style.display='none'; listEl.innerHTML=''; return; }
+    listEl.innerHTML = filtered.map(o=>
+      '<div class="ac-item" data-val="'+esc(getLabel(o))+'"><span class="code">'+esc(String(getLabel(o)))+'</span><span class="name">'+esc(String(getSub(o)||''))+'</span></div>'
+    ).join('');
+    listEl.style.display='block';
+    listEl.querySelectorAll('.ac-item').forEach((item, i)=>{
+      item.addEventListener('mousedown', (e)=>{
+        e.preventDefault();
+        onSelect(filtered[i]);
+        inputEl.value = String(getLabel(filtered[i]));
+        listEl.style.display='none';
+      });
+    });
+  }
+  inputEl.addEventListener('focus', ()=> renderList(inputEl.value));
+  inputEl.addEventListener('input', ()=> renderList(inputEl.value));
+  document.addEventListener('mousedown', (e)=>{
+    if(!container.contains(e.target)) listEl.style.display='none';
+  });
+}
+
+function wireNavEvents(){
+  const plan = App.plan;
+
+  // crew/aircraft fields
+  const bind = (id, key, parse) => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('change', ()=>{
+      const v = parse ? parse(el.value) : el.value;
+      const patch = {}; patch[key] = v;
+      if(key==='acType') patch.tail = '';
+      updatePlan(patch);
+    });
+  };
+  bind('f_callSign','callSign');
+  bind('f_date','date');
+  bind('f_acType','acType');
+  bind('f_tail','tail');
+  bind('f_depTime','depTime');
+  bind('f_fuel','fuel', v=>parseFloat(v)||0);
+  bind('f_load','load', v=>parseFloat(v)||0);
+  bind('f_magVar','magVar', v=>parseFloat(v)||0);
+  bind('f_gs','gs', v=>parseFloat(v)||120);
+
+  // pilot/copilot autocomplete
+  ['pilot','copilot'].forEach(key=>{
+    const container = document.querySelector('[data-ac="'+key+'"]');
+    if(!container) return;
+    const input = document.querySelector('[data-ac-input="'+key+'"]');
+    const list = document.querySelector('[data-ac-list="'+key+'"]');
+    genericAutocomplete(container, input, list, allPlt(), o=>o.name, o=>o.rank+' '+(o.call||''), (o)=>{
+      if(key==='pilot') updatePlan({pilot:o.name, pilotRank:o.rank, callSign:plan.callSign||o.call});
+      else updatePlan({copilot:o.name, copilotRank:o.rank});
+    });
+  });
+
+  // route point waypoint autocompletes
+  plan.route.forEach((p, idx)=>{
+    const container = document.querySelector('[data-wac="'+idx+'"]');
+    if(!container) return;
+    const input = document.querySelector('[data-wac-input="'+idx+'"]');
+    const list = document.querySelector('[data-wac-list="'+idx+'"]');
+    genericAutocomplete(container, input, list, allWpt(), o=>o.code, o=>o.name||'—', (o)=>{
+      const route = plan.route.slice();
+      route[idx] = Object.assign({}, route[idx], {code:o.code, name:o.name, lat:o.lat, lon:o.lon, elev:o.elev});
+      updatePlan({route});
+    });
+  });
+
+  // route field changes (kind, hoverMin, phaseOverride)
+  document.querySelectorAll('[data-field]').forEach(el=>{
+    el.addEventListener('change', ()=>{
+      const idx = parseInt(el.dataset.idx,10);
+      const field = el.dataset.field;
+      const route = plan.route.slice();
+      let val = el.value;
+      if(field==='hoverMin') val = parseFloat(val)||0;
+      if(field==='alt') val = val===''? null : (parseFloat(val)||0);
+      route[idx] = Object.assign({}, route[idx]);
+      route[idx][field] = val;
+      updatePlan({route});
+    });
+  });
+
+  // remove point
+  document.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = parseInt(btn.dataset.remove,10);
+      const route = plan.route.filter((_,i)=>i!==idx);
+      updatePlan({route});
+    });
+  });
+
+  // add point buttons
+  document.querySelectorAll('[data-add]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const kind = btn.dataset.add;
+      const route = plan.route.concat([defaultRoutePoint(kind)]);
+      updatePlan({route});
+    });
+  });
+}
+
+/* ============================================================
+   PRINT TAB
+   ============================================================ */
+/* ============================================================
+   TERRAIN CHECK — open-elevation.com API
+   ============================================================ */
+const terrainCache = {};
+
+async function fetchTerrainElevation(points){
+  // points: [{lat, lon, idx}]
+  // returns {idx: elevationMeters}
+  const needed = points.filter(p=> terrainCache[p.lat+','+p.lon]==null);
+  if(needed.length > 0){
+    try{
+      const locs = needed.map(p=>({latitude:p.lat, longitude:p.lon}));
+      const resp = await fetch('https://api.open-elevation.com/api/v1/lookup',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({locations:locs})
+      });
+      if(resp.ok){
+        const data = await resp.json();
+        (data.results||[]).forEach((r,i)=>{
+          terrainCache[needed[i].lat+','+needed[i].lon] = r.elevation;
+        });
+      }
+    }catch(e){ /* offline or API error — silently ignore */ }
+  }
+  const result = {};
+  points.forEach(p=>{ result[p.idx] = terrainCache[p.lat+','+p.lon] ?? null; });
+  return result;
+}
+
+/* ============================================================
+   ROUTE MAP — SVG flight scheme
+   ============================================================ */
+function buildRouteSVG(legs, W, H){
+  const pts = legs.filter(l=>l.lat!=null && l.lon!=null);
+  if(pts.length < 1) return '<text x="50%" y="50%" text-anchor="middle" fill="#7a8f72" font-size="14">Нет точек с координатами</text>';
+
+  const lats = pts.map(p=>p.lat);
+  const lons = pts.map(p=>p.lon);
+  const latMin0 = Math.min(...lats), latMax0 = Math.max(...lats);
+  const lonMin0 = Math.min(...lons), lonMax0 = Math.max(...lons);
+
+  // --- Projection setup: equal margins on all four sides ---
+  // Step 1: compute geo aspect ratio (corrected for latitude)
+  const midLat0 = (latMin0 + latMax0) / 2;
+  const cosLat = Math.cos(midLat0 * Math.PI / 180);
+
+  const latSpan0 = (latMax0 - latMin0) || 0.05;
+  const lonSpan0 = (lonMax0 - lonMin0) || 0.05;
+
+  // Step 2: margin reserved for grid labels (px)
+  const MARGIN = 48;
+  const mapW = W - MARGIN * 2;
+  const mapH = H - MARGIN * 2;
+
+  // Step 3: find scale that fits the ROUTE (without padding yet)
+  const scaleByLon = mapW / (lonSpan0 * cosLat);
+  const scaleByLat = mapH / latSpan0;
+  const scale = Math.min(scaleByLon, scaleByLat);
+
+  // Step 4: compute how much of mapW/mapH the ROUTE actually uses at this scale
+  const routePxW = lonSpan0 * cosLat * scale;   // route width in px
+  const routePxH = latSpan0 * scale;             // route height in px
+
+  // Step 5: equal padding on each side = (available - route) / 2
+  const padPxX = (mapW - routePxW) / 2;
+  const padPxY = (mapH - routePxH) / 2;
+
+  // Step 6: expand geo bbox by that pixel padding (converted back to degrees)
+  const lonPad = padPxX / (cosLat * scale);
+  const latPad = padPxY / scale;
+
+  const latMin = latMin0 - latPad, latMax = latMax0 + latPad;
+  const lonMin = lonMin0 - lonPad, lonMax = lonMax0 + lonPad;
+  const latSpan = latMax - latMin;
+  const lonSpan = lonMax - lonMin;
+
+  // Step 7: now scale fills mapW × mapH exactly, offset = just MARGIN
+  const offX = MARGIN;
+  const offY = MARGIN;
+
+  function toXY(lat, lon){
+    const x = offX + (lon - lonMin) * cosLat * scale;
+    const y = offY + (latMax - lat) * scale;
+    return [x, y];
+  }
+
+  let svg = '';
+
+  // --- grid ---
+  const gridColor = '#1c2819';
+  const gridLabelColor = '#3a5033';
+  const nGrid = 4;
+  for(let i=0; i<=nGrid; i++){
+    const lon = lonMin + i/nGrid*lonSpan;
+    const lat = latMin + i/nGrid*latSpan;
+    const [gx] = toXY(midLat0, lon);
+    const [,gy] = toXY(lat, lonMin+lonSpan/2);
+    svg += `<line x1="${gx.toFixed(1)}" y1="0" x2="${gx.toFixed(1)}" y2="${H}" stroke="${gridColor}" stroke-width="0.6"/>`;
+    svg += `<line x1="0" y1="${gy.toFixed(1)}" x2="${W}" y2="${gy.toFixed(1)}" stroke="${gridColor}" stroke-width="0.6"/>`;
+    svg += `<text x="${gx.toFixed(1)}" y="${H-4}" text-anchor="middle" fill="${gridLabelColor}" font-size="9" font-family="monospace">${lon.toFixed(2)}°E</text>`;
+    const latLabel = Math.abs(lat).toFixed(2) + (lat>=0?"°N":"°S");
+    svg += `<text x="4" y="${(gy+3).toFixed(1)}" text-anchor="start" fill="${gridLabelColor}" font-size="9" font-family="monospace">${latLabel}</text>`;
+  }
+
+  // --- route lines + arrows ---
+  const normalLegs = legs.filter(l=>l.lat!=null && l.lon!=null);
+  const XY = normalLegs.map(l=>toXY(l.lat, l.lon));
+
+  for(let i=1; i<normalLegs.length; i++){
+    const [x1,y1] = XY[i-1], [x2,y2] = XY[i];
+    const dx=x2-x1, dy=y2-y1, segLen=Math.sqrt(dx*dx+dy*dy)||1;
+    const ux=dx/segLen, uy=dy/segLen;
+
+    // arrowhead at ~55% of segment
+    const arrowT = 0.55;
+    const ax = x1+dx*arrowT, ay = y1+dy*arrowT;
+    const aSize = 7;
+    const ap1x = ax-ux*aSize+uy*aSize*0.42, ap1y = ay-uy*aSize-ux*aSize*0.42;
+    const ap2x = ax-ux*aSize-uy*aSize*0.42, ap2y = ay-uy*aSize+ux*aSize*0.42;
+
+    svg += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#1f8f3f" stroke-width="2" stroke-linecap="round"/>`;
+    svg += `<polygon points="${ax.toFixed(1)},${ay.toFixed(1)} ${ap1x.toFixed(1)},${ap1y.toFixed(1)} ${ap2x.toFixed(1)},${ap2y.toFixed(1)}" fill="#4dba6e" opacity="0.9"/>`;
+  }
+
+  // --- leg labels (DTK + dist) with smart placement + leader lines for short segs ---
+  // SHORT_SEG threshold in pixels: below this we use leader-line callout
+  const SHORT_SEG = 90;
+  const LABEL_W = 46, LABEL_H = 28;
+
+  // Track occupied rectangles to avoid overlap: [{cx,cy}]
+  const occupied = [];
+
+  // Pre-populate occupied zones with waypoint positions
+  XY.forEach(([x,y]) => occupied.push({x, y, r: 18}));
+
+  function overlapsOccupied(cx, cy){
+    return occupied.some(o => {
+      const dx = cx - o.x, dy = cy - o.y;
+      return Math.sqrt(dx*dx+dy*dy) < (o.r + LABEL_W*0.6);
+    });
+  }
+
+  function drawLegLabel(svg, anchorX, anchorY, labelX, labelY, dtkStr, distStr, useLeader){
+    const lx = labelX, ly = labelY;
+    // leader line (dashed) from anchor midpoint to label
+    if(useLeader){
+      svg += `<line x1="${anchorX.toFixed(1)}" y1="${anchorY.toFixed(1)}" x2="${lx.toFixed(1)}" y2="${(ly-6).toFixed(1)}" stroke="#2a4a32" stroke-width="1" stroke-dasharray="4,3"/>`;
+    }
+    // background rect
+    svg += `<rect x="${(lx-LABEL_W/2).toFixed(1)}" y="${(ly-12).toFixed(1)}" width="${LABEL_W}" height="${LABEL_H}" rx="4" fill="#0d1a0f" stroke="#1f4028" stroke-width="0.8" opacity="0.92"/>`;
+    if(dtkStr) svg += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" fill="#6dcf8a" font-size="11" font-weight="700" font-family="monospace">${dtkStr}</text>`;
+    if(distStr) svg += `<text x="${lx.toFixed(1)}" y="${(ly+13).toFixed(1)}" text-anchor="middle" fill="#4a9962" font-size="10" font-family="monospace">${distStr}</text>`;
+    return svg;
+  }
+
+  for(let i=1; i<normalLegs.length; i++){
+    const l = normalLegs[i];
+    if(l.dtk==null && l.dist==null) continue;
+    const [x1,y1] = XY[i-1], [x2,y2] = XY[i];
+    const dx=x2-x1, dy=y2-y1, segLen=Math.sqrt(dx*dx+dy*dy)||1;
+    const ux=dx/segLen, uy=dy/segLen;
+
+    const dtkStr = l.dtk!=null ? Math.round(l.dtk)+'°' : '';
+    const distStr = l.dist!=null ? l.dist.toFixed(1)+' NM' : '';
+
+    // anchor = midpoint of segment (where leader starts)
+    const anchorX = (x1+x2)/2, anchorY = (y1+y2)/2;
+
+    if(segLen >= SHORT_SEG){
+      // ---- LONG segment: place at 1/3, perp offset, no leader ----
+      let lx = x1 + dx*0.33;
+      let ly = y1 + dy*0.33;
+      // right-hand perpendicular of travel direction
+      lx += uy * 14;
+      ly += -ux * 14;
+      // clamp to canvas
+      lx = Math.max(LABEL_W/2+2, Math.min(W-LABEL_W/2-2, lx));
+      ly = Math.max(14, Math.min(H-14, ly));
+      svg = drawLegLabel(svg, anchorX, anchorY, lx, ly, dtkStr, distStr, false);
+      occupied.push({x:lx, y:ly, r: LABEL_W*0.6});
+    } else {
+      // ---- SHORT segment: find best free zone, draw leader ----
+      // Try 8 candidate directions in order of preference, at increasing distances
+      const candidates = [];
+      const baseDist = 55;
+      // Preferred: perpendicular directions (left and right of segment)
+      // Then diagonals, then along-segment extensions
+      const angles = [
+        [ uy, -ux],   // right of direction
+        [-uy,  ux],   // left of direction
+        [ 0,  -1 ],   // north
+        [ 0,   1 ],   // south
+        [-ux, -uy],   // backward along seg (away from destination)
+        [ ux,  uy],   // forward along seg (beyond destination)
+        [ 0.7*uy-0.7*ux, -0.7*uy-0.7*ux], // diagonal combos
+        [-0.7*uy+0.7*ux,  0.7*uy+0.7*ux],
+      ];
+      for(const [nx,ny] of angles){
+        const len = Math.sqrt(nx*nx+ny*ny)||1;
+        for(const dist of [baseDist, baseDist*1.5, baseDist*2]){
+          const cx = anchorX + (nx/len)*dist;
+          const cy = anchorY + (ny/len)*dist;
+          // must stay within canvas
+          if(cx < LABEL_W/2+4 || cx > W-LABEL_W/2-4 || cy < 14 || cy > H-14) continue;
+          candidates.push({cx, cy, dist});
+        }
+      }
+      // Score candidates: prefer non-overlapping, then closest to anchor
+      let chosen = null;
+      let chosenScore = Infinity;
+      for(const c of candidates){
+        const penaltyOverlap = overlapsOccupied(c.cx, c.cy) ? 1000 : 0;
+        const score = c.dist + penaltyOverlap;
+        if(score < chosenScore){ chosenScore = score; chosen = c; }
+      }
+      if(!chosen) continue;
+
+      const lx = chosen.cx, ly = chosen.cy;
+      svg = drawLegLabel(svg, anchorX, anchorY, lx, ly, dtkStr, distStr, true);
+      occupied.push({x:lx, y:ly, r: LABEL_W*0.7});
+    }
+  }
+
+  // --- waypoint dots + labels (drawn last so they're on top) ---
+  normalLegs.forEach((l, i)=>{
+    const [x,y] = XY[i];
+    const isFirst = i===0, isLast = i===normalLegs.length-1;
+    const dotColor = l._terrainWarn ? '#ff4d4d' : (isFirst ? '#ffb347' : isLast ? '#8fb3ff' : '#39ff6a');
+    const dotR = isFirst || isLast ? 7 : 5;
+    const code = l.code || l.kind;
+
+    // label placement: determine best direction away from adjacent segment(s)
+    // compute average incoming/outgoing segment direction, then place label opposite
+    let avgDx = 0, avgDy = 0, cnt = 0;
+    if(i>0){ const [px,py]=XY[i-1]; avgDx+=x-px; avgDy+=y-py; cnt++; }
+    if(i<normalLegs.length-1){ const [nx,ny]=XY[i+1]; avgDx+=nx-x; avgDy+=ny-y; cnt++; }
+    if(cnt>0){ avgDx/=cnt; avgDy/=cnt; }
+    const avgLen = Math.sqrt(avgDx*avgDx+avgDy*avgDy)||1;
+    // perpendicular to average direction, pick side with more space
+    const perpLx = avgDy/avgLen, perpLy = -avgDx/avgLen;
+    // label offset: always above/to-the-side, never on the line
+    const labelOffsetDist = dotR + 12;
+    // prefer upward (negative y in SVG = north) — bias perpendicular toward north
+    let lox = perpLx, loy = perpLy;
+    // if perpendicular points south (loy > 0), flip
+    if(loy > 0.1){ lox = -lox; loy = -loy; }
+    // fallback: pure above
+    if(Math.abs(loy) < 0.15){ lox = 0; loy = -1; }
+
+    const labelX = x + lox * labelOffsetDist;
+    const labelY = y + loy * labelOffsetDist + 4;
+
+    svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${dotR}" fill="${dotColor}" stroke="#0a0e0a" stroke-width="1.5"/>`;
+    // Single text with paint-order so stroke renders behind fill — no duplication in PDF
+    svg += `<text x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="#c8dcc8" font-size="10" font-weight="700" font-family="monospace" stroke="#0d180d" stroke-width="2.5" paint-order="stroke fill">${code}</text>`;
+  });
+
+  // terrain warning badge
+  const warnPts = normalLegs.filter(l=>l._terrainWarn);
+  if(warnPts.length>0){
+    svg += `<rect x="${W-120}" y="10" width="108" height="22" rx="4" fill="#ff4d4d" opacity="0.15"/>`;
+    svg += `<text x="${W-66}" y="25" text-anchor="middle" fill="#ff4d4d" font-size="11" font-weight="700">⚠ TERRAIN</text>`;
+  }
+
+  return svg;
+}
+
+/* ============================================================
+   PRINT TAB
+   ============================================================ */
+function renderPrint(){
+  const main = document.getElementById('main');
+  const plan = App.plan;
+  if(!plan) return;
+  const aircraft = getAircraft(plan);
+  const result = computeRoute(plan.route, aircraft, {
+    startMass: (aircraft? aircraft.empty:0) + (plan.load||0) + (plan.fuel||0),
+    fuelOnBoard: plan.fuel||0,
+    depTimeMinutes: parseTimeToMinutes(plan.depTime),
+    magVar: plan.magVar||0,
+    gs: plan.gs||120,
+  });
+
+  // kick off terrain check in background
+  const terrainPts = result.legs
+    .map((l,i)=>({lat:l.lat, lon:l.lon, idx:i}))
+    .filter(p=>p.lat!=null && p.lon!=null);
+
+  let html = '<div class="panel">';
+  html += '<div class="panel-title">Печатная форма и схема</div>';
+  html += '<div class="btn-row">';
+  html += '<button class="btn btn-primary" id="btnPrint">🖨 Печать / PDF</button>';
+  html += '<button class="btn" id="btnCheckTerrain">🏔 Проверить рельеф</button>';
+  html += '<span id="orientBadge" class="pill" style="margin-left:8px; color:var(--amber); border-color:var(--amber); font-size:11px; padding:5px 10px;"></span>';
+  html += '</div>';
+  html += '<div class="hint">Проверка рельефа требует интернет (open-elevation.com). На iPad: Печать → Сохранить в Files.</div>';
+  html += '</div>';
+
+  // ---- PRINT AREA ----
+  html += '<div id="printArea">';
+
+  // --- NAV TABLE ---
+  html += '<div class="print-block">';
+  html += '<div class="print-header">';
+  html += '<div class="print-title">OPERATIONAL FLIGHT PLAN</div>';
+  html += '<div class="print-meta">';
+  html += '<span>'+esc(plan.callSign||'—')+'</span>';
+  html += '<span>'+esc(plan.acType)+' '+esc(plan.tail)+'</span>';
+  html += '<span>'+esc(plan.date)+'</span>';
+  html += '<span>DEP '+esc(plan.depTime)+'</span>';
+  html += '<span>КВС: '+esc(plan.pilot||'—')+'</span>';
+  html += '<span>2П: '+esc(plan.copilot||'—')+'</span>';
+  html += '</div></div>';
+
+  html += '<table class="print-table"><thead><tr>';
+  html += '<th>#</th><th>POINT</th><th>ALT М</th><th>DTK°</th><th>DIST NM</th>';
+  html += '<th>ETE</th><th>ATA</th><th>FUEL</th><th>FUEL REM</th><th>LAT</th><th>LON</th>';
+  html += '</tr></thead><tbody>';
+
+  result.legs.forEach((l,i)=>{
+    const terrWarn = l._terrainWarn;
+    const rowClass = terrWarn ? ' class="print-warn"' : '';
+    html += '<tr'+rowClass+'>';
+    html += '<td>'+(i+1)+'</td>';
+    html += '<td><b>'+esc(l.code||l.kind)+'</b>'+(terrWarn?' ⚠':'')+'</td>';
+    html += '<td>'+(l.alt!=null?l.alt:(l.elev!=null?l.elev:'—'))+'</td>';
+    html += '<td>'+(l.dtk!=null?Math.round(l.dtk):'—')+'</td>';
+    html += '<td>'+(l.dist!=null?l.dist.toFixed(1):'—')+'</td>';
+    html += '<td>'+fmtHM(l.ete)+'</td>';
+    html += '<td>'+l.ata+'</td>';
+    html += '<td>'+Math.round(l.fuelBurn)+'</td>';
+    html += '<td>'+Math.round(l.fuelRem)+'</td>';
+    html += '<td>'+(l.lat!=null?ddToDM(l.lat,true):'')+'</td>';
+    html += '<td>'+(l.lon!=null?ddToDM(l.lon,false):'')+'</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+
+  // totals strip
+  const tot = result.totals;
+  if(tot){
+    html += '<div class="print-totals">';
+    html += '<span>DIST: <b>'+tot.totalDist.toFixed(1)+' NM</b></span>';
+    html += '<span>ETE: <b>'+fmtHM(tot.totalEte)+'</b></span>';
+    html += '<span>FUEL BURN: <b>'+Math.round(tot.totalFuel)+' кг</b></span>';
+    html += '<span>FUEL REM: <b>'+Math.round(tot.fuelRem)+' кг</b></span>';
+    html += '<span>END MASS: <b>'+Math.round(tot.massEnd)+' кг</b></span>';
+    html += '<span>RESERVE: <b>'+(tot.reserveOk?'OK':'⚠ LOW')+'</b></span>';
+    html += '</div>';
+  }
+  html += '</div>'; // print-block nav table
+
+  // ============================================================
+  // PAGE 2: FLIGHT SCHEME
+  // ============================================================
+  const mapLegs = result.legs.filter(l=>l.lat!=null && l.lon!=null);
+  let isLandscape = false;
+  if(mapLegs.length >= 2){
+    const lats = mapLegs.map(l=>l.lat);
+    const lons = mapLegs.map(l=>l.lon);
+    const midLatR = (Math.min(...lats)+Math.max(...lats))/2;
+    const cosLatR = Math.cos(midLatR*Math.PI/180);
+    const geoW = (Math.max(...lons)-Math.min(...lons)) * cosLatR;
+    const geoH = (Math.max(...lats)-Math.min(...lats));
+    isLandscape = (geoW > geoH);
+  }
+
+  // SVG viewport: A4 minus 10mm margins → landscape 277×190mm, portrait 190×277mm
+  // At 3.78px/mm (96dpi) those are ~1047×718 and ~718×1047
+  // We keep a simpler internal resolution for the map engine:
+  const svgW = isLandscape ? 760 : 520;
+  const svgH = isLandscape ? 480 : 700;
+
+  // Physical print sizes
+  const printW = isLandscape ? '277mm' : '190mm';  // A4 - 10mm margins each side
+  const printH = isLandscape ? '190mm' : '277mm';
+
+  // ── Page 2: Orientation style element ──────────────────────────
+  // Chrome named @page: table-page=landscape, map-page=portrait or landscape
+  // Injected immediately so it's in the DOM when print triggers.
+  let orientStyleEl = document.getElementById('pageOrientStyle');
+  if(!orientStyleEl){
+    orientStyleEl = document.createElement('style');
+    orientStyleEl.id = 'pageOrientStyle';
+    document.head.appendChild(orientStyleEl);
+  }
+  // A4 landscape usable area = 297-20mm = 277mm wide, 210-20mm = 190mm tall
+  // A4 portrait  usable area = 210-20mm = 190mm wide, 297-20mm = 277mm tall
+  // Map block height = page height minus margins (header~18mm + footer~10mm ≈ 28mm overhead)
+  const mapPageName = isLandscape ? 'map-landscape' : 'map-portrait';
+  const mapBlockH   = isLandscape ? '162mm' : '249mm'; // usable height minus header+footer
+
+  orientStyleEl.textContent =
+    `@media print { .print-map-block { page: ${mapPageName}; } }`;
+
+  const routeCodes = mapLegs.map(l=>l.code||l.kind).join(' — ');
+
+  // ── Build scheme page HTML ──────────────────────────────────────
+  html += '<div class="print-block print-map-block">';
+
+  // Header (mirrors NAV table page header exactly)
+  html += '<div class="print-header">';
+  html += '<div class="print-title">OPERATIONAL FLIGHT PLAN</div>';
+  html += '<div class="print-meta">';
+  html += '<span>'+esc(plan.callSign||'—')+'</span>';
+  html += '<span>'+esc(plan.acType)+' '+esc(plan.tail)+'</span>';
+  html += '<span>'+esc(plan.date)+'</span>';
+  html += '<span>DEP '+esc(plan.depTime)+'</span>';
+  html += '<span>КВС: '+esc(plan.pilot||'—')+'</span>';
+  html += '<span>2П: '+esc(plan.copilot||'—')+'</span>';
+  html += '</div></div>'; // .print-header
+
+  // SVG — flex:1 via .route-map-svg, fills space between header and footer
+  html += `<svg id="routeSvg" viewBox="0 0 ${svgW} ${svgH}" preserveAspectRatio="xMidYMid meet"`;
+  html += ` xmlns="http://www.w3.org/2000/svg" class="route-map-svg" style="width:100%;"`;
+  html += ` data-landscape="${isLandscape}" data-map-block-h="${mapBlockH}">`;
+  html += `<rect width="${svgW}" height="${svgH}" fill="#0a0e0a"/>`;
+  html += buildRouteSVG(result.legs, svgW, svgH);
+  html += `</svg>`;
+
+  // Footer totals (mirrors NAV table page footer)
+  html += '<div class="print-totals">';
+  if(tot){
+    html += `<span>DIST: <b>${tot.totalDist.toFixed(1)} NM</b></span>`;
+    html += `<span>ETE: <b>${fmtHM(tot.totalEte)}</b></span>`;
+    html += `<span>FUEL BURN: <b>${Math.round(tot.totalFuel)} кг</b></span>`;
+    html += `<span>FUEL REM: <b>${Math.round(tot.fuelRem)} кг</b></span>`;
+    html += `<span>END MASS: <b>${Math.round(tot.massEnd)} кг</b></span>`;
+    html += `<span>RESERVE: <b>${tot.reserveOk?'OK':'⚠ LOW'}</b></span>`;
+  }
+  html += '</div>';
+
+  html += '</div>'; // .print-map-block
+  html += '</div>'; // printArea
+
+  main.innerHTML = html;
+
+  // Update on-screen orientation badge
+  const badge = document.getElementById('orientBadge');
+  if(badge) badge.textContent = isLandscape ? '↔ Альбом' : '↕ Книжный';
+
+  // ── Print button: set SVG height in CSS var before print ────────
+  document.getElementById('btnPrint').onclick = ()=>{
+    const svg = document.getElementById('routeSvg');
+    const mapH = svg ? (svg.dataset.mapBlockH || '162mm') : '162mm';
+    // Set --map-page-h so .print-map-block gets the right height (fills 1 page)
+    document.documentElement.style.setProperty('--map-page-h', mapH);
+    // Give browser one frame to apply then print
+    requestAnimationFrame(()=>{
+      window.print();
+      // Clean up after dialog closes
+      setTimeout(()=>{
+        document.documentElement.style.removeProperty('--map-page-h');
+      }, 2000);
+    });
+  };
+
+  document.getElementById('btnCheckTerrain').onclick = async ()=>{
+    const btn = document.getElementById('btnCheckTerrain');
+    btn.textContent = '⏳ Запрос рельефа...';
+    btn.disabled = true;
+    try{
+      const elevMap = await fetchTerrainElevation(terrainPts);
+      // mark legs that have terrain warning
+      result.legs.forEach((l,i)=>{
+        const terrainElev = elevMap[i];
+        if(terrainElev == null) return;
+        const flightAlt = l.alt!=null ? l.alt : (l.elev!=null ? l.elev : null);
+        const safeMargin = 300; // metres
+        if(flightAlt!=null && flightAlt < terrainElev + safeMargin){
+          l._terrainWarn = true;
+          l._terrainElev = terrainElev;
+        } else {
+          l._terrainWarn = false;
+        }
+      });
+      btn.textContent = '✅ Рельеф проверен';
+      btn.style.borderColor = 'var(--green)';
+      btn.style.color = 'var(--green)';
+      // re-render to show warnings
+      renderPrint();
+    }catch(e){
+      btn.textContent = '❌ Ошибка API';
+      btn.disabled = false;
+    }
+  };
+}
+
+/* ============================================================
+   DATABASE TAB
+   ============================================================ */
+let dbSub = 'wpt';
+let dbQuery = '';
+
+function renderDb(){
+  const main = document.getElementById('main');
+  const customSet = dbSub==='wpt' ? new Set(CUSTOM.wpt.map(x=>x._cid)) : dbSub==='plt' ? new Set(CUSTOM.plt.map(x=>x._cid)) : new Set(CUSTOM.ac.map(x=>x._cid));
+  const data = dbSub==='wpt' ? allWpt() : dbSub==='plt' ? allPlt() : allAc();
+  const ql = dbQuery.toLowerCase();
+  const filtered = !ql ? data : data.filter(d => JSON.stringify(d).toLowerCase().includes(ql));
+
+  let html = '<div class="panel">';
+  html += '<div class="panel-title">База данных</div>';
+  html += '<div class="btn-row" style="margin-bottom:10px;">';
+  html += '<button class="btn'+(dbSub==='wpt'?' btn-primary':'')+'" data-dbsub="wpt">WPT ('+allWpt().length+')</button>';
+  html += '<button class="btn'+(dbSub==='plt'?' btn-primary':'')+'" data-dbsub="plt">PLT ('+allPlt().length+')</button>';
+  html += '<button class="btn'+(dbSub==='ac'?' btn-primary':'')+'" data-dbsub="ac">AC ('+allAc().length+')</button>';
+  html += '<button class="btn btn-primary" id="btnAddRecord" style="margin-left:auto;">+ Добавить</button>';
+  html += '</div>';
+  html += '<div class="field" style="margin-bottom:10px;"><input id="dbSearch" placeholder="Поиск..." value="'+esc(dbQuery)+'"/></div>';
+  html += '<div class="table-wrap">';
+
+  if(dbSub==='wpt'){
+    html += '<table class="route-table"><thead><tr><th>код</th><th>название</th><th>тип</th><th>lat</th><th>lon</th><th>elev</th><th></th></tr></thead><tbody>';
+    filtered.forEach(w=>{
+      const isCustom = w._cid && customSet.has(w._cid);
+      html += '<tr><td class="num-g">'+esc(w.code)+(isCustom?' <span class="pill" style="border-color:var(--green);color:var(--green);">user</span>':'')+'</td><td>'+esc(w.name)+'</td>'+
+        '<td><span class="pill t-'+esc(w.type)+'">'+esc(w.type)+'</span></td>'+
+        '<td class="num">'+(w.lat!=null?w.lat.toFixed(4):'')+'</td>'+
+        '<td class="num">'+(w.lon!=null?w.lon.toFixed(4):'')+'</td>'+
+        '<td class="num">'+(w.elev||'—')+'</td>'+
+        '<td>'+(isCustom?'<button class="rm-btn" data-delcustom="wpt" data-cid="'+esc(w._cid)+'">✕</button>':'')+'</td></tr>';
+    });
+    html += '</tbody></table>';
+  } else if(dbSub==='plt'){
+    html += '<table class="route-table"><thead><tr><th>имя</th><th>звание</th><th>позывной</th><th></th></tr></thead><tbody>';
+    filtered.forEach(p=>{
+      const isCustom = p._cid && customSet.has(p._cid);
+      html += '<tr><td class="num-g">'+esc(p.name)+(isCustom?' <span class="pill" style="border-color:var(--green);color:var(--green);">user</span>':'')+'</td><td>'+esc(p.rank)+'</td><td>'+esc(p.call||'—')+'</td>'+
+        '<td>'+(isCustom?'<button class="rm-btn" data-delcustom="plt" data-cid="'+esc(p._cid)+'">✕</button>':'')+'</td></tr>';
+    });
+    html += '</tbody></table>';
+  } else {
+    html += '<table class="route-table"><thead><tr><th>тип</th><th>борт</th><th>empty</th><th>FF climb/cruise/desc/gnd</th><th>max fuel</th><th>emer</th><th></th></tr></thead><tbody>';
+    filtered.forEach(a=>{
+      const isCustom = a._cid && customSet.has(a._cid);
+      html += '<tr><td class="ac">'+esc(a.type)+(isCustom?' <span class="pill" style="border-color:var(--green);color:var(--green);">user</span>':'')+'</td><td class="num-g">'+esc(a.tail)+'</td><td class="num">'+esc(a.empty)+'</td>'+
+        '<td class="num">'+esc(a.ffClimb)+'/'+esc(a.ffCruise)+'/'+esc(a.ffDescent)+'/'+esc(a.ffGround)+'</td>'+
+        '<td class="num">'+esc(a.maxFuel)+'</td><td class="num">'+esc(a.emerFuel)+'</td>'+
+        '<td>'+(isCustom?'<button class="rm-btn" data-delcustom="ac" data-cid="'+esc(a._cid)+'">✕</button>':'')+'</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+  html += '</div></div>';
+  main.innerHTML = html;
+
+  main.querySelectorAll('[data-dbsub]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ dbSub = btn.dataset.dbsub; renderDb(); });
+  });
+  const search = document.getElementById('dbSearch');
+  search.addEventListener('input', ()=>{ dbQuery = search.value; renderDb(); search2Focus(); });
+  function search2Focus(){
+    const s = document.getElementById('dbSearch');
+    if(s){ s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
+  }
+
+  document.getElementById('btnAddRecord').addEventListener('click', ()=> openAddRecordModal(dbSub));
+
+  main.querySelectorAll('[data-delcustom]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const kind = btn.dataset.delcustom;
+      const cid = btn.dataset.cid;
+      CUSTOM[kind] = CUSTOM[kind].filter(x=>x._cid!==cid);
+      saveCustomRef();
+      showToast('Запись удалена');
+      renderDb();
+    });
+  });
+}
+
+/* ---------- add-record modal ---------- */
+function closeModal(){
+  const ov = document.getElementById('modalOverlay');
+  if(ov) ov.remove();
+}
+
+function openAddRecordModal(kind){
+  closeModal();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'modalOverlay';
+
+  let formHtml = '';
+  let title = '';
+  if(kind==='wpt'){
+    title = 'Новая точка маршрута (WPT)';
+    formHtml = `
+      <div class="grid g2">
+        <div class="field"><label>КОД</label><input id="m_code" placeholder="напр. NEWPT"/></div>
+        <div class="field"><label>ТИП</label><select id="m_type">
+          <option value="A">A — аэродром</option>
+          <option value="P">P — точка маршрута</option>
+          <option value="T">T — техническая</option>
+          <option value="H">H — площадка</option>
+          <option value="S">S — прочее</option>
+          <option value="M">M — маркер</option>
+        </select></div>
+      </div>
+      <div class="field" style="margin-top:10px;"><label>НАЗВАНИЕ</label><input id="m_name" placeholder="необязательно"/></div>
+      <div class="grid g3" style="margin-top:10px;">
+        <div class="field"><label>LAT (DD.dddd)</label><input id="m_lat" type="number" step="0.000001" placeholder="41.5170"/></div>
+        <div class="field"><label>LON (DD.dddd)</label><input id="m_lon" type="number" step="0.000001" placeholder="69.5754"/></div>
+        <div class="field"><label>ELEV (м)</label><input id="m_elev" type="number" placeholder="необязательно"/></div>
+      </div>
+    `;
+  } else if(kind==='plt'){
+    title = 'Новый пилот';
+    formHtml = `
+      <div class="field"><label>ФИО</label><input id="m_name" placeholder="Иванов И.И."/></div>
+      <div class="grid g2" style="margin-top:10px;">
+        <div class="field"><label>ЗВАНИЕ</label><input id="m_rank" placeholder="напр. КВС"/></div>
+        <div class="field"><label>ПОЗЫВНОЙ</label><input id="m_call" placeholder="необязательно"/></div>
+      </div>
+    `;
+  } else {
+    title = 'Новый борт (AC)';
+    formHtml = `
+      <div class="grid g2">
+        <div class="field"><label>ТИП ВС</label><input id="m_actype" placeholder="напр. H215"/></div>
+        <div class="field"><label>БОРТ №</label><input id="m_tail" placeholder="напр. 301"/></div>
+      </div>
+      <div class="grid g2" style="margin-top:10px;">
+        <div class="field"><label>ПУСТОЙ ВЕС (кг)</label><input id="m_empty" type="number"/></div>
+        <div class="field"><label>КОЭФ. ЗАПАСА (%)</label><input id="m_pct" type="number" value="7"/></div>
+      </div>
+      <div class="grid g4" style="margin-top:10px;">
+        <div class="field"><label>FF НАБОР</label><input id="m_ffclimb" type="number"/></div>
+        <div class="field"><label>FF ГП</label><input id="m_ffcruise" type="number"/></div>
+        <div class="field"><label>FF СНИЖ</label><input id="m_ffdescent" type="number"/></div>
+        <div class="field"><label>FF ЗЕМЛЯ</label><input id="m_ffground" type="number"/></div>
+      </div>
+      <div class="grid g3" style="margin-top:10px;">
+        <div class="field"><label>MAX FUEL (кг)</label><input id="m_maxfuel" type="number"/></div>
+        <div class="field"><label>EMER FUEL (кг)</label><input id="m_emerfuel" type="number"/></div>
+        <div class="field"><label>MAX MASS (кг)</label><input id="m_maxmass" type="number"/></div>
+      </div>
+      <div class="grid g3" style="margin-top:10px;">
+        <div class="field"><label>TAXI TIME (мин)</label><input id="m_taxitime" type="number"/></div>
+        <div class="field"><label>START-UP (мин)</label><input id="m_startuptime" type="number"/></div>
+        <div class="field"><label>SHUT-DOWN (мин)</label><input id="m_shutdowntime" type="number"/></div>
+      </div>
+    `;
+  }
+
+  overlay.innerHTML = '<div class="modal"><h3>'+title+'</h3><div id="modalForm">'+formHtml+'</div>'+
+    '<div class="btn-row" style="margin-top:16px; justify-content:flex-end;">'+
+    '<button class="btn" id="m_cancel">Отмена</button>'+
+    '<button class="btn btn-primary" id="m_save">Сохранить</button>'+
+    '</div></div>';
+
+  document.body.appendChild(overlay);
+  overlay.addEventListener('mousedown', (e)=>{ if(e.target===overlay) closeModal(); });
+  document.getElementById('m_cancel').addEventListener('click', closeModal);
+  document.getElementById('m_save').addEventListener('click', ()=> saveNewRecord(kind));
+}
+
+function saveNewRecord(kind){
+  const cid = 'c'+newId();
+  if(kind==='wpt'){
+    const code = document.getElementById('m_code').value.trim();
+    const lat = parseFloat(document.getElementById('m_lat').value);
+    const lon = parseFloat(document.getElementById('m_lon').value);
+    if(!code){ showToast('Укажите код точки'); return; }
+    if(isNaN(lat) || isNaN(lon)){ showToast('Укажите координаты lat/lon'); return; }
+    const rec = {
+      _cid: cid,
+      type: document.getElementById('m_type').value,
+      name: document.getElementById('m_name').value.trim() || null,
+      code, lat, lon,
+      elev: document.getElementById('m_elev').value ? parseFloat(document.getElementById('m_elev').value) : null,
+    };
+    CUSTOM.wpt.push(rec);
+  } else if(kind==='plt'){
+    const name = document.getElementById('m_name').value.trim();
+    if(!name){ showToast('Укажите ФИО'); return; }
+    const rec = {
+      _cid: cid,
+      name,
+      rank: document.getElementById('m_rank').value.trim() || null,
+      call: document.getElementById('m_call').value.trim() || null,
+    };
+    CUSTOM.plt.push(rec);
+  } else {
+    const actype = document.getElementById('m_actype').value.trim();
+    const tail = document.getElementById('m_tail').value.trim();
+    if(!actype || !tail){ showToast('Укажите тип ВС и борт №'); return; }
+    const num = (id, def) => { const v = document.getElementById(id).value; return v===''? (def!=null?def:null) : parseFloat(v); };
+    const rec = {
+      _cid: cid,
+      type: actype, tail,
+      empty: num('m_empty', 0),
+      ffClimb: num('m_ffclimb', 0), ffCruise: num('m_ffcruise', 0), ffDescent: num('m_ffdescent', 0), ffGround: num('m_ffground', 0),
+      ffGoaround: 0,
+      maxFuel: num('m_maxfuel', 0), emerFuel: num('m_emerfuel', 0),
+      crew: 0, maxMass: num('m_maxmass', 0), payload: 0, paxMass: 0,
+      taxiTime: num('m_taxitime', 0), startupTime: num('m_startuptime', 0), shutdownTime: num('m_shutdowntime', 0),
+      pct: num('m_pct', 7), unit: 'EURO',
+    };
+    CUSTOM.ac.push(rec);
+  }
+  saveCustomRef();
+  closeModal();
+  showToast('Запись добавлена');
+  renderDb();
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=> setView(tab.dataset.view));
+});
+
+render();
+
+/* ---- PWA: service worker registration ---- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{ /* offline caching unavailable, app still works online */ });
+  });
+}
+
+</script>
+</body>
+</html>
